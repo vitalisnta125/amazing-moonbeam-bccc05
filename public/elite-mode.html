@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>EXECURE — Elite Mode</title>
+<meta name="description" content="Elite Mode — the focused, pre-committed trading environment from EXECURE, the Behaviour Operating System for traders." />
+
+<!-- Fonts: DM Mono (numbers/timers) + Syne (copy/labels) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<!-- React + ReactDOM + Babel via CDN -->
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<style>
+  :root {
+    --bg: #07090f;
+    --teal: #00c9a7;
+    --teal-dim: rgba(0, 201, 167, 0.14);
+    --teal-line: rgba(0, 201, 167, 0.30);
+    --amber: #f5a623;
+    --amber-dim: rgba(245, 166, 35, 0.12);
+    --red: #e53935;
+    --red-dim: rgba(229, 57, 53, 0.07);
+    --ink: #eaf1f2;
+    --ink-soft: #9aa7af;
+    --ink-faint: #5c6973;
+    --card: #0b0f17;
+    --card-2: #0e1420;
+    --hair: rgba(255, 255, 255, 0.07);
+
+    /* state-driven, transitioned (the 600ms colour crossfade) */
+    --accent: var(--teal);
+    --accent-line: var(--teal-line);
+    --accent-dim: var(--teal-dim);
+    --tint: transparent;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Syne", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  .mono { font-family: "DM Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  button { font-family: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ---------- App shell, themed by state ---------- */
+  .stage {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    transition: background-color 600ms ease;
+  }
+  /* warmer/red background tint overlay, crossfaded */
+  .tint {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: var(--tint);
+    transition: background-color 600ms ease, opacity 600ms ease;
+  }
+
+  /* Perimeter border ring */
+  .ring {
+    position: fixed; inset: 0; pointer-events: none; z-index: 60;
+    border: 1.5px solid var(--accent-line);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    transition: border-color 600ms ease, box-shadow 600ms ease, border-width 600ms ease;
+  }
+  .ring.amber {
+    border-color: var(--amber);
+    border-width: 2px;
+    animation: breathe 3.6s ease-in-out infinite;
+  }
+  .ring.breach {
+    border-color: var(--red);
+    border-width: 3px;
+    animation: heartbeat 2.6s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { box-shadow: inset 0 0 38px -8px rgba(245,166,35,0.22); }
+    50%      { box-shadow: inset 0 0 90px -4px rgba(245,166,35,0.55); }
+  }
+  @keyframes heartbeat {
+    0%, 100% { box-shadow: inset 0 0 60px -10px rgba(229,57,53,0.30); }
+    20%      { box-shadow: inset 0 0 130px -2px rgba(229,57,53,0.80); }
+    40%      { box-shadow: inset 0 0 60px -10px rgba(229,57,53,0.30); }
+    60%      { box-shadow: inset 0 0 100px -4px rgba(229,57,53,0.60); }
+  }
+
+  /* Amber vignette darkening the edges */
+  .vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 55;
+    opacity: 0;
+    transition: opacity 600ms ease;
+    background: radial-gradient(120% 90% at 50% 50%, transparent 52%, rgba(0,0,0,0.55) 100%);
+  }
+  .vignette.on { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring.amber, .ring.breach { animation: none; }
+    .ring.amber { box-shadow: inset 0 0 0 1px rgba(245,166,35,0.4); }
+    .ring.breach { box-shadow: inset 0 0 0 1px rgba(229,57,53,0.5); }
+    .dot, .pulse-soft { animation: none !important; }
+  }
+
+  /* ---------- Layout ---------- */
+  .wrap { position: relative; z-index: 10; max-width: 1080px; margin: 0 auto; padding: 26px 22px 80px; }
+
+  .topbar { display: flex; align-items: center; gap: 16px; }
+  .brand { display: flex; flex-direction: column; gap: 2px; }
+  .brand .name { font-weight: 800; letter-spacing: 0.22em; font-size: 13px; }
+  .brand .sub { font-size: 10.5px; letter-spacing: 0.18em; color: var(--ink-faint); text-transform: uppercase; }
+  .spacer { flex: 1; }
+
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: var(--card); border: 1px solid var(--hair); color: var(--ink-soft);
+    display: grid; place-items: center; transition: border-color .2s, color .2s, transform .2s;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--accent-line); transform: translateY(-1px); }
+
+  /* hero toggle */
+  .hero {
+    margin-top: 22px;
+    border: 1px solid var(--hair);
+    background: linear-gradient(180deg, var(--card-2), var(--card));
+    border-radius: 18px;
+    padding: 20px 22px;
+    display: flex; align-items: center; gap: 18px;
+    transition: border-color 600ms ease;
+  }
+  .hero.live { border-color: var(--accent-line); }
+  .hero .h-copy h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: .01em; }
+  .hero .h-copy p { margin: 5px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 540px; line-height: 1.45; }
+
+  .switch {
+    --w: 64px; --h: 34px;
+    position: relative; width: var(--w); height: var(--h); border-radius: 999px;
+    border: 1px solid var(--hair); background: #0a0e16; flex: 0 0 auto;
+    transition: background-color .35s ease, border-color .35s ease;
+  }
+  .switch.on { background: var(--accent-dim); border-color: var(--accent-line); }
+  .switch .knob {
+    position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+    background: #4a5560; transition: transform .35s cubic-bezier(.4,1.3,.5,1), background-color .35s ease;
+  }
+  .switch.on .knob { transform: translateX(30px); background: var(--accent); box-shadow: 0 0 16px var(--accent); }
+
+  /* Compliance ring */
+  .compliance { display: flex; align-items: center; gap: 10px; }
+  .compliance .label { text-align: right; }
+  .compliance .label .t { font-size: 9.5px; letter-spacing: .14em; color: var(--ink-faint); text-transform: uppercase; }
+  .compliance .label .v { font-size: 13px; color: var(--ink-soft); }
+
+  /* banner */
+  .banner {
+    margin-top: 18px; border-radius: 13px; padding: 13px 16px;
+    background: var(--amber-dim); border: 1px solid rgba(245,166,35,0.45);
+    color: #ffd591; font-size: 13.5px; font-weight: 600; letter-spacing: .01em;
+    display: flex; align-items: center; gap: 10px;
+    animation: slideDown .6s ease both;
+  }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px);} to {opacity:1; transform: none;} }
+
+  /* grid */
+  .grid { margin-top: 18px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--hair); border-radius: 16px; padding: 18px 18px;
+    transition: border-color 600ms ease, background-color 600ms ease;
+  }
+  .panel .ptitle { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
+
+  /* rules checklist */
+  .rule { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-top: 1px solid var(--hair); }
+  .rule:first-of-type { border-top: none; }
+  .rule .tick {
+    width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--accent-line);
+    display: grid; place-items: center; flex: 0 0 auto; margin-top: 1px; color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .rule .rtext { font-size: 14px; color: var(--ink); line-height: 1.35; }
+  .rule .rmeta { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+
+  .intent {
+    background: var(--card-2); border: 1px dashed var(--hair); border-radius: 12px; padding: 14px 15px;
+    color: var(--ink); font-size: 14px; line-height: 1.5; font-style: italic;
+  }
+  .intent .lead { font-style: normal; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
+
+  /* stat row */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .stat { background: var(--card-2); border: 1px solid var(--hair); border-radius: 12px; padding: 13px 14px; }
+  .stat .k { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+  .stat .num { font-size: 26px; margin-top: 4px; color: var(--ink); }
+  .stat .num small { font-size: 14px; color: var(--ink-faint); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-left: 8px; box-shadow: 0 0 10px var(--red); animation: pulseDot 1.6s ease-in-out infinite; vertical-align: middle; }
+  @keyframes pulseDot { 0%,100%{opacity:.35; transform:scale(.85);} 50%{opacity:1; transform:scale(1.15);} }
+
+  /* primary CTA */
+  .cta {
+    width: 100%; margin-top: 16px; padding: 15px 18px; border-radius: 13px; border: none;
+    font-weight: 700; font-size: 15px; letter-spacing: .02em;
+    background: var(--accent); color: #00120e; transition: filter .2s, transform .12s, background-color .6s ease;
+  }
+  .cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .cta:active { transform: translateY(0); }
+  .cta.amber { background: var(--amber); color: #2a1a00; }
+  .cta.ghost { background: transparent; border: 1px solid var(--accent-line); color: var(--accent); }
+  .cta.disabled, .cta:disabled { background: #1a1f2a; color: var(--ink-faint); cursor: not-allowed; filter: none; transform: none; }
+
+  /* timer big */
+  .bigtimer { font-size: 40px; line-height: 1; letter-spacing: .02em; }
+
+  /* ---------- overlays / modals ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 80; background: rgba(3,5,9,0.72); backdrop-filter: blur(3px);
+    display: grid; place-items: center; padding: 20px; animation: fade .25s ease both; }
+  @keyframes fade { from {opacity:0;} to {opacity:1;} }
+  .modal {
+    width: 100%; max-width: 460px; background: linear-gradient(180deg, var(--card-2), var(--card));
+    border: 1px solid var(--hair); border-radius: 18px; padding: 24px; animation: pop .35s cubic-bezier(.2,1,.4,1) both;
+  }
+  @keyframes pop { from {opacity:0; transform: translateY(10px) scale(.98);} to {opacity:1; transform:none;} }
+  .modal h2 { margin: 0; font-size: 18px; font-weight: 800; }
+  .modal .m-sub { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .modal textarea {
+    width: 100%; margin-top: 16px; min-height: 96px; resize: vertical;
+    background: #060a11; border: 1px solid var(--hair); border-radius: 11px; color: var(--ink);
+    padding: 12px 13px; font-size: 14px; line-height: 1.5; outline: none; transition: border-color .2s;
+  }
+  .modal textarea:focus { border-color: var(--accent-line); }
+  .counter { font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; text-align: right; }
+  .counter.ok { color: var(--accent); }
+  .row { display: flex; gap: 10px; margin-top: 16px; }
+  .row .cta { margin-top: 0; }
+  .btn-min { padding: 13px 16px; border-radius: 12px; background: transparent; border: 1px solid var(--hair); color: var(--ink-soft); font-weight: 600; }
+  .btn-min:hover { color: var(--ink); border-color: rgba(255,255,255,0.2); }
+
+  .breach-badge { display:inline-block; font-size: 10px; letter-spacing:.2em; text-transform: uppercase; color: var(--red); border:1px solid rgba(229,57,53,.5); border-radius:999px; padding:4px 10px; margin-bottom:14px; }
+  .breach-headline { font-size: 30px; letter-spacing:.06em; margin: 4px 0 0; }
+  .cooldown { text-align:center; margin: 18px 0 6px; }
+  .cooldown .lab { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color: var(--ink-faint); }
+  .cooldown .clk { font-size: 48px; line-height:1; margin-top:6px; color: var(--ink); }
+  .finefoot { font-size: 11px; color: var(--ink-faint); text-align:center; margin-top:18px; line-height:1.5; }
+
+  /* gate checklist */
+  .gate-item { display:flex; align-items:center; gap:11px; padding:11px 12px; border:1px solid var(--hair); border-radius:11px; margin-top:9px; cursor:pointer; transition: border-color .2s, background-color .2s; }
+  .gate-item.checked { border-color: var(--accent-line); background: var(--accent-dim); }
+  .gate-box { width:20px; height:20px; border-radius:6px; border:1.5px solid var(--ink-faint); display:grid; place-items:center; flex:0 0 auto; color: var(--accent); }
+  .gate-item.checked .gate-box { border-color: var(--accent); }
+  .gate-label { font-size:13.5px; }
+
+  /* settings drawer */
+  .drawer-scrim { position: fixed; inset:0; z-index:90; background: rgba(3,5,9,0.6); animation: fade .25s ease both; }
+  .drawer {
+    position: fixed; top:0; right:0; bottom:0; z-index:91; width: 380px; max-width: 92vw;
+    background: var(--card); border-left:1px solid var(--hair); padding: 22px; overflow-y:auto;
+    animation: slideIn .35s cubic-bezier(.2,1,.4,1) both;
+  }
+  @keyframes slideIn { from { transform: translateX(30px); opacity:0; } to { transform:none; opacity:1; } }
+  .drawer h2 { margin:0 0 2px; font-size:17px; font-weight:800; }
+  .drawer .dsub { font-size:12px; color: var(--ink-faint); margin:0 0 18px; }
+  .field { margin-top: 16px; }
+  .field label { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color: var(--ink-soft); display:block; margin-bottom:7px; }
+  .field input[type=number], .field input[type=text] {
+    width:100%; background:#060a11; border:1px solid var(--hair); border-radius:10px; color:var(--ink);
+    padding:11px 12px; font-size:14px; outline:none; transition: border-color .2s;
+  }
+  .field input:focus { border-color: var(--accent-line); }
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-top:1px solid var(--hair); }
+  .toggle-row .tl { font-size:13.5px; }
+  .toggle-row .tl small { display:block; color: var(--ink-faint); font-size:11.5px; margin-top:2px; }
+  .mini-switch { width:46px; height:26px; border-radius:999px; background:#0a0e16; border:1px solid var(--hair); position:relative; flex:0 0 auto; transition: background-color .3s, border-color .3s; }
+  .mini-switch.on { background: var(--teal-dim); border-color: var(--teal-line); }
+  .mini-switch .mk { position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#4a5560; transition: transform .3s, background-color .3s; }
+  .mini-switch.on .mk { transform: translateX(20px); background: var(--teal); }
+  .inline-time { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .inline-time input { width:84px; }
+  .inline-time span { font-size:12.5px; color: var(--ink-soft); }
+  .save-btn { width:100%; margin-top:22px; padding:13px; border-radius:12px; border:none; background:var(--teal); color:#00120e; font-weight:700; font-size:14px; }
+  .reset-btn { width:100%; margin-top:10px; padding:12px; border-radius:12px; background:transparent; border:1px solid rgba(229,57,53,.4); color:#ff8a87; font-weight:600; font-size:13px; }
+
+  /* toast log */
+  .toast {
+    position: fixed; left:50%; bottom:22px; transform: translateX(-50%); z-index:95;
+    background: var(--card-2); border:1px solid var(--accent-line); color: var(--ink);
+    padding: 11px 16px; border-radius: 12px; font-size:13px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    animation: pop .3s ease both;
+  }
+
+  .footnote { margin-top: 26px; text-align:center; font-size: 11px; color: var(--ink-faint); letter-spacing:.04em; }
+  .pulse-soft { animation: glowPulse 3s ease-in-out infinite; }
+  @keyframes glowPulse { 0%,100%{ opacity:.85;} 50%{opacity:1;} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ---------------- persistence ---------------- */
+const RULES_KEY = "execure.elite.rules.v1";
+const SESS_KEY  = "execure.elite.session.v1";
+
+const DEFAULT_RULES = {
+  maxTrades: 3,
+  noTradeWindow: { enabled: true, minutes: 30 },
+  mandatorySL: true,
+  customRule: "Only A+ setups",
+  todaysIntent: "Trade only my A+ setups. Two trades, then I walk. I protect the account before I chase the move.",
+  sessionMinutes: 90,
+};
+
+function loadRules() {
+  try {
+    const r = JSON.parse(localStorage.getItem(RULES_KEY));
+    if (r && typeof r === "object") return { ...DEFAULT_RULES, ...r, noTradeWindow: { ...DEFAULT_RULES.noTradeWindow, ...(r.noTradeWindow||{}) } };
+  } catch (e) {}
+  return DEFAULT_RULES;
+}
+
+// Demo session so the UI is never empty on first load.
+function freshSession(rules) {
+  return {
+    compliance: 100,
+    tradesUsed: 1,            // 1/3 already logged today — populated, not empty
+    cleanTrades: 1,
+    breaches: 0,
+    overrides: 0,
+    startedAt: Date.now(),
+    breachStartedAt: null,
+    trades: [{ type: "clean", at: Date.now() - 1000 * 60 * 18, note: "London open continuation — A+ setup, SL set." }],
+  };
+}
+
+function loadSession(rules) {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESS_KEY));
+    if (s && typeof s === "object" && typeof s.compliance === "number") return s;
+  } catch (e) {}
+  return freshSession(rules);
+}
+
+/* ---------------- helpers ---------------- */
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+function fmt(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+const COOLDOWN_SECONDS = 5 * 60;
+
+/* ---------------- Compliance ring ---------------- */
+function ComplianceRing({ value, color }) {
+  const r = 17, c = 2 * Math.PI * r;
+  const off = c * (1 - clamp(value, 0, 100) / 100);
+  return (
+    <div className="compliance">
+      <div className="label">
+        <div className="t">Compliance</div>
+        <div className="v">session</div>
+      </div>
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+        <circle cx="24" cy="24" r={r} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 24 24)"
+          style={{ transition: "stroke-dashoffset .6s ease, stroke .6s ease" }} />
+        <text x="24" y="27.5" textAnchor="middle" fontFamily="DM Mono, monospace" fontSize="12.5" fill="#eaf1f2">{Math.round(value)}</text>
+      </svg>
+    </div>
+  );
+}
+
+function Check({ s = 13 }) {
+  return (<svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></svg>);
+}
+function Gear() {
+  return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>);
+}
+
+/* ---------------- Rule Builder drawer ---------------- */
+function RuleBuilder({ rules, onSave, onReset, onClose }) {
+  const [draft, setDraft] = useState(rules);
+  const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
+  const setWin = (patch) => setDraft((d) => ({ ...d, noTradeWindow: { ...d.noTradeWindow, ...patch } }));
+
+  return (
+    <>
+      <div className="drawer-scrim" onClick={onClose} />
+      <div className="drawer" role="dialog" aria-label="Elite Mode rule builder">
+        <h2>Rule Builder</h2>
+        <p className="dsub">Pre-commit your rules before the session. They cannot be loosened once Elite Mode is live.</p>
+
+        <div className="field">
+          <label>Max trades per session</label>
+          <input type="number" min="1" max="20" className="mono" value={draft.maxTrades}
+            onChange={(e) => set({ maxTrades: clamp(parseInt(e.target.value || "1", 10), 1, 20) })} />
+        </div>
+
+        <div className="toggle-row">
+          <div className="tl">No-trade window<small>Stay flat at the open</small></div>
+          <div className={"mini-switch" + (draft.noTradeWindow.enabled ? " on" : "")}
+            onClick={() => setWin({ enabled: !draft.noTradeWindow.enabled })} role="switch" aria-checked={draft.noTradeWindow.enabled}>
+            <div className="mk" />
+          </div>
+        </div>
+        {draft.noTradeWindow.enabled && (
+          <div className="inline-time">
+            <span>First</span>
+            <input type="number" min="1" max="120" className="mono" value={draft.noTradeWindow.minutes}
+              onChange={(e) => setWin({ minutes: clamp(parseInt(e.target.value || "1", 10), 1, 120) })} />
+            <span>minutes after open</span>
+          </div>
+        )}
+
+        <div className="toggle-row">
+          <div className="tl">Mandatory stop-loss<small>SL must be set before entry</small></div>
+          <div className={"mini-switch" + (draft.mandatorySL ? " on" : "")}
+            onClick={() => set({ mandatorySL: !draft.mandatorySL })} role="switch" aria-checked={draft.mandatorySL}>
+            <div className="mk" />
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Custom rule</label>
+          <input type="text" value={draft.customRule} placeholder="e.g. Only A+ setups"
+            onChange={(e) => set({ customRule: e.target.value })} />
+        </div>
+
+        <div className="field">
+          <label>Today's intent</label>
+          <input type="text" value={draft.todaysIntent}
+            onChange={(e) => set({ todaysIntent: e.target.value })} />
+        </div>
+
+        <div className="field">
+          <label>Session length (minutes)</label>
+          <input type="number" min="10" max="600" className="mono" value={draft.sessionMinutes}
+            onChange={(e) => set({ sessionMinutes: clamp(parseInt(e.target.value || "10", 10), 10, 600) })} />
+        </div>
+
+        <button className="save-btn" onClick={() => onSave(draft)}>Save rules</button>
+        <button className="reset-btn" onClick={onReset}>Reset session (clear trades &amp; score)</button>
+      </div>
+    </>
+  );
+}
+
+/* ---------------- Pre-trade gate (Standard) ---------------- */
+function PreTradeGate({ rules, onConfirm, onClose }) {
+  const items = useMemo(() => buildRuleList(rules).map((r) => r.text), [rules]);
+  const [checked, setChecked] = useState(() => items.map(() => false));
+  const all = checked.every(Boolean);
+  return (
+    <div className="scrim" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Pre-trade check</h2>
+        <p className="m-sub">Confirm every rule holds for this trade. This gate is the hand on your shoulder — it does not trade for you.</p>
+        {items.map((t, i) => (
+          <div key={i} className={"gate-item" + (checked[i] ? " checked" : "")}
+            onClick={() => setChecked((c) => c.map((v, j) => (j === i ? !v : v)))}>
+            <div className="gate-box">{checked[i] && <Check />}</div>
+            <div className="gate-label">{t}</div>
+          </div>
+        ))}
+        <div className="row">
+          <button className="btn-min" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className={"cta" + (all ? "" : " disabled")} style={{ flex: 1.4 }} disabled={!all}
+            onClick={() => onConfirm()}>Confirm &amp; log trade</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Justification gate (Amber) ---------------- */
+function Justification({ onConfirm, onClose }) {
+  const [txt, setTxt] = useState("");
+  const ok = txt.trim().length >= 15;
+  return (
+    <div className="scrim" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Proceed with caution</h2>
+        <p className="m-sub">You're one trade from your limit. Write the intent behind this trade before you take it (one or two sentences).</p>
+        <textarea autoFocus value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="e.g. Clean A+ continuation off the level, SL below structure, sized at plan risk." />
+        <div className={"counter" + (ok ? " ok" : "")}>{txt.trim().length} chars · 15 min</div>
+        <div className="row">
+          <button className="btn-min" style={{ flex: 1 }} onClick={onClose}>Step back</button>
+          <button className={"cta amber" + (ok ? "" : " disabled")} style={{ flex: 1.4 }} disabled={!ok}
+            onClick={() => onConfirm(txt.trim())}>Log with intent</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Breach modal (Red) ---------------- */
+function BreachModal({ session, now, rules, onReviewPlan, onOverride }) {
+  const elapsed = session.breachStartedAt ? Math.floor((now - session.breachStartedAt) / 1000) : 0;
+  const remaining = COOLDOWN_SECONDS - elapsed;
+  const unlocked = remaining <= 0;
+
+  const [showOverride, setShowOverride] = useState(false);
+  const [txt, setTxt] = useState("");
+  const ok = txt.trim().length >= 50;
+
+  return (
+    <div className="scrim" style={{ background: "rgba(2,3,6,0.82)" }}>
+      <div className="modal" style={{ borderColor: "rgba(229,57,53,0.45)", maxWidth: 480 }}>
+        <span className="breach-badge">Red breach</span>
+        <h2 className="breach-headline mono">LIMIT REACHED</h2>
+        <p className="m-sub">You've hit your trade limit for this session. This is the moment where discipline compounds.</p>
+
+        {!unlocked ? (
+          <div className="cooldown">
+            <div className="lab">Mandatory cooldown</div>
+            <div className="clk mono pulse-soft">{fmt(remaining)}</div>
+          </div>
+        ) : (
+          <div className="cooldown">
+            <div className="lab">Cooldown complete</div>
+            <div className="clk mono" style={{ fontSize: 26, color: "var(--ink-soft)" }}>You may review &amp; reflect</div>
+          </div>
+        )}
+
+        {!showOverride && (
+          <div style={{ marginTop: 16 }}>
+            <button className="cta ghost" onClick={onReviewPlan}>Review my plan</button>
+            {unlocked && (
+              <button className="cta" style={{ background: "var(--red)", color: "#fff", marginTop: 10 }}
+                onClick={() => setShowOverride(true)}>Override (log reason)</button>
+            )}
+          </div>
+        )}
+
+        {showOverride && (
+          <div style={{ marginTop: 16 }}>
+            <textarea autoFocus value={txt} onChange={(e) => setTxt(e.target.value)}
+              placeholder="This trade breaks the limit you set for yourself. What is the honest reason — and was it worth it? (min 50 characters)" />
+            <div className={"counter" + (ok ? " ok" : "")}>{txt.trim().length} / 50</div>
+            <div className="row">
+              <button className="btn-min" style={{ flex: 1 }} onClick={() => setShowOverride(false)}>Back</button>
+              <button className={"cta" + (ok ? "" : " disabled")} style={{ flex: 1.4, background: ok ? "var(--red)" : undefined, color: ok ? "#fff" : undefined }}
+                disabled={!ok} onClick={() => onOverride(txt.trim())}>Log breach trade</button>
+            </div>
+          </div>
+        )}
+
+        <p className="finefoot">Breach trades are logged separately and reviewed in your weekly report.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- rule list builder ---------------- */
+function buildRuleList(rules) {
+  const list = [{ text: "Max " + rules.maxTrades + " trades", meta: "Session trade cap" }];
+  if (rules.noTradeWindow.enabled)
+    list.push({ text: "No trading first " + rules.noTradeWindow.minutes + " mins after open", meta: "Let the open settle" });
+  if (rules.mandatorySL)
+    list.push({ text: "SL set before entry", meta: "Define risk first" });
+  if (rules.customRule && rules.customRule.trim())
+    list.push({ text: rules.customRule.trim(), meta: "Custom rule" });
+  return list;
+}
+
+/* ---------------- main app ---------------- */
+function App() {
+  const [rules, setRules] = useState(loadRules);
+  const [session, setSession] = useState(() => loadSession(loadRules()));
+  const [eliteOn, setEliteOn] = useState(true);
+  const [now, setNow] = useState(Date.now());
+  const [drawer, setDrawer] = useState(false);
+  const [gate, setGate] = useState(null);   // 'pretrade' | 'justify' | null
+  const [toast, setToast] = useState(null);
+  const [planFlash, setPlanFlash] = useState(false);
+  const intentRef = useRef(null);
+
+  // persist
+  useEffect(() => { try { localStorage.setItem(RULES_KEY, JSON.stringify(rules)); } catch (e) {} }, [rules]);
+  useEffect(() => { try { localStorage.setItem(SESS_KEY, JSON.stringify(session)); } catch (e) {} }, [session]);
+
+  // clock
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
+
+  // toast auto-dismiss
+  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 2600); return () => clearTimeout(id); }, [toast]);
+
+  // derive state
+  const stateName = useMemo(() => {
+    if (!eliteOn) return "off";
+    if (session.tradesUsed >= rules.maxTrades) return "breach";
+    if (session.tradesUsed >= rules.maxTrades - 1) return "amber";
+    return "standard";
+  }, [eliteOn, session.tradesUsed, rules.maxTrades]);
+
+  // when entering breach, stamp the cooldown start once
+  useEffect(() => {
+    if (stateName === "breach" && !session.breachStartedAt) {
+      setSession((s) => ({ ...s, breachStartedAt: Date.now() }));
+    }
+  }, [stateName, session.breachStartedAt]);
+
+  // theme variables per state
+  const theme = useMemo(() => {
+    if (stateName === "amber") return { accent: "var(--amber)", line: "var(--amber)", dim: "var(--amber-dim)", tint: "rgba(245,166,35,0.05)", ring: "amber" };
+    if (stateName === "breach") return { accent: "var(--red)", line: "var(--red)", dim: "var(--red-dim)", tint: "rgba(229,57,53,0.07)", ring: "breach" };
+    return { accent: "var(--teal)", line: "var(--teal-line)", dim: "var(--teal-dim)", tint: "transparent", ring: "" };
+  }, [stateName]);
+
+  const stageStyle = {
+    "--accent": theme.accent,
+    "--accent-line": theme.line,
+    "--accent-dim": theme.dim,
+    "--tint": theme.tint,
+  };
+
+  const complianceColor = session.compliance >= 80 ? "#00c9a7" : session.compliance >= 50 ? "#f5a623" : "#e53935";
+
+  // session countdown
+  const sessionEnds = session.startedAt + rules.sessionMinutes * 60 * 1000;
+  const sessionLeft = Math.max(0, Math.floor((sessionEnds - now) / 1000));
+
+  /* ----- actions ----- */
+  const logCleanTrade = useCallback((note) => {
+    setSession((s) => ({
+      ...s,
+      tradesUsed: s.tradesUsed + 1,
+      cleanTrades: s.cleanTrades + 1,
+      compliance: clamp(s.compliance + 10, 0, 100),
+      trades: [...s.trades, { type: "clean", at: Date.now(), note: note || "Clean trade — within plan." }],
+    }));
+    setToast({ kind: "ok", msg: "Clean trade logged · compliance +10%" });
+  }, []);
+
+  const logBreachTrade = useCallback((reason) => {
+    setSession((s) => ({
+      ...s,
+      tradesUsed: s.tradesUsed + 1,
+      breaches: s.breaches + 1,
+      overrides: s.overrides + 1,
+      compliance: clamp(s.compliance - 25, 0, 100),
+      breachStartedAt: null,
+      trades: [...s.trades, { type: "breach", at: Date.now(), note: reason }],
+    }));
+    setToast({ kind: "bad", msg: "BREACH trade logged · compliance −25%" });
+  }, []);
+
+  const onPrimary = () => {
+    if (stateName === "standard") setGate("pretrade");
+    else if (stateName === "amber") setGate("justify");
+  };
+
+  const reviewPlan = () => {
+    setDrawer(false); setGate(null);
+    setPlanFlash(true);
+    if (intentRef.current) intentRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setPlanFlash(false), 1600);
+  };
+
+  const resetSession = () => {
+    const fresh = freshSession(rules);
+    setSession(fresh);
+    setDrawer(false);
+    setToast({ kind: "ok", msg: "Session reset · back to Standard" });
+  };
+
+  const ruleList = buildRuleList(rules);
+
+  return (
+    <div className="stage" style={stageStyle}>
+      <div className="tint" />
+      {eliteOn && <div className={"ring " + theme.ring} />}
+      <div className={"vignette" + (stateName === "amber" ? " on" : "")} />
+
+      <div className="wrap">
+        {/* top bar */}
+        <div className="topbar">
+          <div className="brand">
+            <div className="name">EXECURE</div>
+            <div className="sub">Elite Mode</div>
+          </div>
+          <div className="spacer" />
+          {eliteOn && <ComplianceRing value={session.compliance} color={complianceColor} />}
+          <button className="icon-btn" title="Rule Builder" onClick={() => setDrawer(true)}><Gear /></button>
+        </div>
+
+        {/* hero toggle */}
+        <div className={"hero" + (eliteOn ? " live" : "")}>
+          <div className="h-copy">
+            <h1>{eliteOn ? "Elite Mode is live" : "Elite Mode"}</h1>
+            <p>{eliteOn
+              ? "A pre-committed environment. Your rules hold the line so you don't have to argue with yourself mid-trade."
+              : "Activate a focused, rule-enforced session. The system slows you down at the edges — without taking the wheel."}</p>
+          </div>
+          <div className="spacer" />
+          <div className={"switch" + (eliteOn ? " on" : "")} role="switch" aria-checked={eliteOn}
+            onClick={() => setEliteOn((v) => !v)}>
+            <div className="knob" />
+          </div>
+        </div>
+
+        {/* amber banner */}
+        {eliteOn && stateName === "amber" && (
+          <div className="banner">
+            ⚠️ Approaching limit — {session.tradesUsed} of {rules.maxTrades} trades used. Trade with intent only.
+          </div>
+        )}
+
+        {/* main grid */}
+        {eliteOn ? (
+          <div className="grid">
+            {/* left: rules */}
+            <div className="panel">
+              <p className="ptitle">Active rules</p>
+              {ruleList.map((r, i) => (
+                <div className="rule" key={i}>
+                  <div className="tick"><Check /></div>
+                  <div>
+                    <div className="rtext">{r.text}</div>
+                    <div className="rmeta">{r.meta}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ marginTop: 16 }} ref={intentRef}>
+                <div className="intent" style={planFlash ? { borderColor: theme.accent, boxShadow: "0 0 0 1px " + theme.accent } : null}>
+                  <div className="lead">Today's intent</div>
+                  {rules.todaysIntent}
+                </div>
+              </div>
+
+              {/* CTA */}
+              {stateName === "standard" && (
+                <button className="cta" onClick={onPrimary}>Log a Trade</button>
+              )}
+              {stateName === "amber" && (
+                <button className="cta amber" onClick={onPrimary}>Proceed with Caution</button>
+              )}
+              {stateName === "breach" && (
+                <button className="cta disabled" disabled>Trade logging locked</button>
+              )}
+            </div>
+
+            {/* right: meters */}
+            <div className="panel">
+              <p className="ptitle">Session</p>
+              <div className="stats">
+                <div className="stat">
+                  <div className="k">Trades used</div>
+                  <div className="num mono">{session.tradesUsed}<small>/{rules.maxTrades}</small></div>
+                </div>
+                <div className="stat">
+                  <div className="k">Compliance</div>
+                  <div className="num mono" style={{ color: complianceColor }}>{Math.round(session.compliance)}<small>%</small></div>
+                </div>
+              </div>
+
+              <div className="stat" style={{ marginTop: 12 }}>
+                <div className="k">Session timer
+                  {(stateName === "amber" || stateName === "breach") && <span className="dot" />}
+                </div>
+                <div className="bigtimer mono" style={{ marginTop: 6 }}>{fmt(sessionLeft)}</div>
+              </div>
+
+              <div className="stats">
+                <div className="stat">
+                  <div className="k">Clean trades</div>
+                  <div className="num mono" style={{ color: "var(--teal)" }}>{session.cleanTrades}</div>
+                </div>
+                <div className="stat">
+                  <div className="k">Breaches</div>
+                  <div className="num mono" style={{ color: session.breaches ? "var(--red)" : "var(--ink)" }}>{session.breaches}</div>
+                </div>
+              </div>
+
+              <p className="ptitle" style={{ marginTop: 18 }}>Recent</p>
+              {session.trades.slice().reverse().slice(0, 4).map((t, i) => (
+                <div className="rule" key={i} style={{ alignItems: "center" }}>
+                  <div className="tick" style={t.type === "breach" ? { color: "var(--red)", borderColor: "rgba(229,57,53,.5)", background: "var(--red-dim)" } : null}>
+                    {t.type === "breach" ? "!" : <Check />}
+                  </div>
+                  <div>
+                    <div className="rtext" style={{ fontSize: 13 }}>{t.type === "breach" ? "Breach trade" : "Clean trade"}</div>
+                    <div className="rmeta">{t.note}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="panel" style={{ marginTop: 18, textAlign: "center", padding: "40px 20px" }}>
+            <p className="ptitle">Standard session</p>
+            <div style={{ fontSize: 15, color: "var(--ink-soft)", maxWidth: 460, margin: "0 auto", lineHeight: 1.6 }}>
+              Elite Mode is off. You're trading on your own discretion. Flip the switch above to enter a focused, rule-enforced session.
+            </div>
+          </div>
+        )}
+
+        <div className="footnote">
+          EXECURE · The Behaviour Operating System for Traders — "Hold the trader's hand, but not all the way."
+        </div>
+      </div>
+
+      {/* gates */}
+      {gate === "pretrade" && (
+        <PreTradeGate rules={rules} onClose={() => setGate(null)}
+          onConfirm={() => { setGate(null); logCleanTrade("Pre-trade check passed — within plan."); }} />
+      )}
+      {gate === "justify" && (
+        <Justification onClose={() => setGate(null)}
+          onConfirm={(note) => { setGate(null); logCleanTrade("Caution trade — " + note); }} />
+      )}
+
+      {/* breach modal */}
+      {eliteOn && stateName === "breach" && (
+        <BreachModal session={session} now={now} rules={rules}
+          onReviewPlan={reviewPlan}
+          onOverride={(reason) => logBreachTrade(reason)} />
+      )}
+
+      {/* settings drawer */}
+      {drawer && (
+        <RuleBuilder rules={rules}
+          onClose={() => setDrawer(false)}
+          onReset={resetSession}
+          onSave={(d) => { setRules(d); setDrawer(false); setToast({ kind: "ok", msg: "Rules saved" }); }} />
+      )}
+
+      {/* toast */}
+      {toast && (
+        <div className="toast" style={toast.kind === "bad" ? { borderColor: "rgba(229,57,53,.6)", color: "#ffb3b1" } : null}>
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

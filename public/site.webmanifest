@@ -1,0 +1,12 @@
+{
+  "name": "EXECURE — The Behaviour Operating System for Traders",
+  "short_name": "EXECURE",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#080c14",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

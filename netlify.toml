@@ -1,0 +1,19 @@
+[build]
+  command = "vite build"
+  publish = "dist/client"
+
+[dev]
+  command = "npm run dev"
+  targetPort = 3000
+  port = 8888
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/:splat"
+  status = 200
+  conditions = { Role = ["admin"] }
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/"
+  status = 302
