@@ -2,7 +2,7 @@
 //
 // A self-contained, mobile-first behaviour OS. Everything in this file persists
 // to localStorage and works offline. It reuses the EXECURE theme tokens defined
-// in styles.css (--color-brand, --color-surface, etc.) so the look stays
+// in styles.css (--color-mint, --color-panel, etc.) so the look stays
 // consistent with the rest of the app.
 //
 // Modules:
@@ -13,24 +13,24 @@
 //   • Accountability Leaderboard — rank against peers by discipline, not P&L
 
 import { useEffect, useMemo, useState } from "react";
+import { LeaderboardTable } from "./components/behaviour/LeaderboardTable";
 
 /* -------------------------------------------------------------------------- */
 /* Theme (mirrors src/styles.css tokens so this file is self-contained)        */
 /* -------------------------------------------------------------------------- */
 
 const THEME = {
-  brand: "var(--color-brand)",
-  brandDark: "var(--color-brand-dark)",
-  surface: "var(--color-surface)",
-  elevated: "var(--color-surface-elevated)",
-  card: "var(--color-surface-card)",
-  border: "var(--color-border)",
-  text: "var(--color-text-primary)",
-  textSecondary: "var(--color-text-secondary)",
-  textMuted: "var(--color-text-muted)",
-  danger: "var(--color-danger)",
+  surface: "var(--color-bg)",
+  card: "var(--color-panel)",
+  elevated: "var(--color-panel-2)",
+  border: "var(--color-line)",
+  text: "var(--color-fg)",
+  textSecondary: "var(--color-fg-2)",
+  textMuted: "var(--color-fg-3)",
+  danger: "var(--color-red)",
   amber: "var(--color-amber)",
-  success: "var(--color-success)",
+  success: "var(--color-mint)",
+  insight: "var(--color-violet)",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -87,7 +87,7 @@ const BIAS_OPTIONS = [
 // Severity → penalty points removed from the discipline score for the day.
 const SEVERITY = {
   minor: { label: "Minor", weight: 5, color: THEME.amber },
-  major: { label: "Major", weight: 15, color: "#ff6e40" },
+  major: { label: "Major", weight: 15, color: THEME.danger },
   critical: { label: "Critical", weight: 30, color: THEME.danger },
 };
 
@@ -148,96 +148,33 @@ const PEERS = [
 ];
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: "◎" },
-  { id: "session", label: "Session", icon: "⏻" },
-  { id: "rules", label: "Rules", icon: "⚑" },
-  { id: "propfirm", label: "Prop Firm", icon: "▣" },
-  { id: "leaderboard", label: "Leaders", icon: "♛" },
+  { id: "overview", label: "Today" },
+  { id: "session", label: "Session lock" },
+  { id: "rules", label: "Rules" },
+  { id: "propfirm", label: "Risk" },
+  { id: "leaderboard", label: "Leaderboard" },
 ];
+
+const TAB_COPY = {
+  overview: { title: "Today", description: "Today's live discipline score, pre-trade checklist and end-of-day close." },
+  session: { title: "Session lock", description: "Freeze the day's plan. Executions are counted against it." },
+  rules: { title: "Rules", description: "Log breaches as they happen. Each carries a weighted penalty." },
+  propfirm: { title: "Risk", description: "Daily loss, drawdown and challenge compliance." },
+  leaderboard: { title: "Leaderboard", description: "Accountability ranked by discipline — never by P&L." },
+};
 
 /* -------------------------------------------------------------------------- */
 /* Small presentational primitives                                             */
 /* -------------------------------------------------------------------------- */
 
-function ScoreRing({ value, max = 100, size = 168, stroke = 12, color, label }) {
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const pct = Math.max(0, Math.min(1, value / max));
-  const dash = pct * circumference;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={THEME.border}
-        strokeWidth={stroke}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={stroke}
-        strokeDasharray={`${dash} ${circumference}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        style={{ transition: "stroke-dasharray 0.6s ease, stroke 0.4s ease" }}
-      />
-      <text
-        x="50%"
-        y={label ? "44%" : "50%"}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill={THEME.text}
-        fontSize={size * 0.3}
-        fontWeight="900"
-      >
-        {Math.round(value)}
-      </text>
-      {label && (
-        <text
-          x="50%"
-          y="63%"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill={THEME.textSecondary}
-          fontSize={size * 0.085}
-          fontWeight="600"
-          letterSpacing="1"
-        >
-          {label}
-        </text>
-      )}
-    </svg>
-  );
-}
-
-function Card({ children, className = "", accent = false }) {
-  return (
-    <div
-      className={`rounded-2xl border p-4 sm:p-5 ${className}`}
-      style={{
-        backgroundColor: THEME.card,
-        borderColor: accent ? "rgba(0, 255, 136, 0.18)" : THEME.border,
-      }}
-    >
-      {children}
-    </div>
-  );
+function Card({ children, className = "" }) {
+  return <div className={`panel p-4 min-w-0 ${className}`}>{children}</div>;
 }
 
 function SectionTitle({ children, right }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <h3
-        className="text-[11px] font-bold uppercase tracking-[0.12em]"
-        style={{ color: THEME.textSecondary }}
-      >
-        {children}
-      </h3>
+    <div className="flex items-center justify-between gap-3 mb-3">
+      <h3 className="label-caps m-0">{children}</h3>
       {right}
     </div>
   );
@@ -248,28 +185,22 @@ function Meter({ label, value, max, color, danger = false, suffix = "" }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs" style={{ color: THEME.textSecondary }}>
+        <span className="text-[12px]" style={{ color: THEME.textSecondary }}>
           {label}
         </span>
-        <span
-          className="text-xs font-bold"
-          style={{ color: danger ? THEME.danger : color }}
-        >
+        <span className="num text-[12px]" style={{ color: danger ? THEME.danger : THEME.text }}>
           {value}
           {suffix} / {max}
           {suffix}
         </span>
       </div>
-      <div
-        className="h-2 rounded-full overflow-hidden"
-        style={{ backgroundColor: THEME.surface }}
-      >
+      <div className="h-1.5 rounded-[2px] overflow-hidden" style={{ backgroundColor: THEME.elevated }}>
         <div
-          className="h-full rounded-full"
+          className="h-full rounded-[2px]"
           style={{
             width: `${pct}%`,
             backgroundColor: danger ? THEME.danger : color,
-            transition: "width 0.5s ease, background-color 0.4s ease",
+            transition: "width 0.4s ease, background-color 0.3s ease",
           }}
         />
       </div>
@@ -277,18 +208,23 @@ function Meter({ label, value, max, color, danger = false, suffix = "" }) {
   );
 }
 
+const TONE = {
+  good: THEME.success,
+  warn: THEME.amber,
+  bad: THEME.danger,
+  insight: THEME.insight,
+  neutral: THEME.textSecondary,
+};
+
 function Pill({ tone = "neutral", children }) {
-  const map = {
-    good: { bg: "rgba(0,255,136,0.12)", fg: THEME.success },
-    warn: { bg: "rgba(245,158,11,0.14)", fg: THEME.amber },
-    bad: { bg: "rgba(239,68,68,0.14)", fg: THEME.danger },
-    neutral: { bg: THEME.elevated, fg: THEME.textMuted },
-  };
-  const c = map[tone] || map.neutral;
+  const fg = TONE[tone] || TONE.neutral;
   return (
     <span
-      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-      style={{ backgroundColor: c.bg, color: c.fg }}
+      className="inline-flex items-center h-[18px] text-[10px] font-medium uppercase tracking-[0.08em] px-1.5 rounded-[3px] whitespace-nowrap"
+      style={{
+        color: fg,
+        backgroundColor: tone === "neutral" ? THEME.elevated : `color-mix(in srgb, ${fg} 10%, transparent)`,
+      }}
     >
       {children}
     </span>
@@ -313,8 +249,15 @@ function todayKey() {
 /* Root component                                                              */
 /* -------------------------------------------------------------------------- */
 
-export default function App() {
-  const [tab, setTab] = usePersistentState("tab", "overview");
+export default function App({ tab: urlTab, onTabChange } = {}) {
+  // The URL (?tab=) is the source of truth when present; the last-used tab is
+  // remembered for plain /os visits.
+  const [storedTab, setStoredTab] = usePersistentState("tab", "overview");
+  const tab = urlTab ?? storedTab;
+  function setTab(next) {
+    setStoredTab(next);
+    onTabChange?.(next);
+  }
   const [session, setSession] = usePersistentState("session", DEFAULT_SESSION);
   const [violations, setViolations] = usePersistentState("violations", []);
   const [checklist, setChecklist] = usePersistentState("checklist", {});
@@ -492,84 +435,52 @@ export default function App() {
   }
 
   /* ---- render ---- */
+  const copy = TAB_COPY[tab] || TAB_COPY.overview;
   return (
-    <div
-      className="min-h-full w-full"
-      style={{ backgroundColor: THEME.surface, color: THEME.text }}
-    >
-      {/* Header */}
-      <header
-        className="sticky top-0 z-20 border-b backdrop-blur"
-        style={{
-          backgroundColor: "rgba(8,12,20,0.85)",
-          borderColor: THEME.border,
-        }}
-      >
-        <div className="mx-auto max-w-3xl px-4 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-black"
-                style={{ backgroundColor: THEME.brand, color: THEME.surface }}
-              >
-                E
-              </span>
-              <h1 className="text-sm font-black tracking-tight truncate">
-                EXECURE{" "}
-                <span style={{ color: THEME.textMuted }} className="font-semibold">
-                  · Behaviour OS
-                </span>
-              </h1>
-            </div>
-            <p className="text-[11px] mt-0.5" style={{ color: THEME.textSecondary }}>
-              Discipline today. Freedom tomorrow.
+    <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 py-5 lg:py-6">
+      {/* Page header with today's live discipline score */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h1 className="text-[20px] leading-7 font-semibold tracking-[-0.01em] m-0">{copy.title}</h1>
+          <p className="text-[13px] m-0 mt-1" style={{ color: THEME.textSecondary }}>
+            {copy.description}
+          </p>
+        </div>
+        <div className="flex items-center gap-5">
+          <div>
+            <p className="label-caps m-0 text-[10px]">Discipline today</p>
+            <p className="num text-[20px] leading-none m-0 mt-1.5" style={{ color: scoreColor(disciplineScore) }}>
+              {disciplineScore}
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="text-right">
-              <p className="text-[10px]" style={{ color: THEME.textMuted }}>
-                Discipline
-              </p>
-              <p
-                className="text-lg font-black leading-none"
-                style={{ color: scoreColor(disciplineScore) }}
-              >
-                {disciplineScore}
-              </p>
-            </div>
-            <div
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-              style={{ backgroundColor: THEME.elevated }}
-            >
-              <span className="text-sm">🔥</span>
-              <span className="text-sm font-bold">{profile.streak}</span>
-            </div>
+          <div>
+            <p className="label-caps m-0 text-[10px]">Streak</p>
+            <p className="num text-[20px] leading-none m-0 mt-1.5">{profile.streak}d</p>
           </div>
         </div>
+      </div>
 
-        {/* Tab bar — horizontally scrollable on small screens */}
-        <nav className="mx-auto max-w-3xl px-2 pb-2 flex gap-1 overflow-x-auto no-scrollbar">
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className="flex-1 min-w-[72px] flex flex-col sm:flex-row items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
-                style={{
-                  backgroundColor: active ? "rgba(0,255,136,0.1)" : "transparent",
-                  color: active ? THEME.brand : THEME.textSecondary,
-                }}
-              >
-                <span className="text-sm leading-none">{t.icon}</span>
-                <span className="whitespace-nowrap">{t.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </header>
+      {/* Segmented tab control — mirrors the sidebar deep links */}
+      <nav className="flex gap-px mb-4 border-b overflow-x-auto no-scrollbar" style={{ borderColor: THEME.border }}>
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="relative h-9 px-3 text-[13px] whitespace-nowrap bg-transparent border-none cursor-pointer transition-colors"
+              style={{ color: active ? THEME.text : THEME.textSecondary }}
+            >
+              {t.label}
+              {active && (
+                <span className="absolute left-2 right-2 -bottom-px h-px" style={{ backgroundColor: THEME.text }} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
-      <main className="mx-auto max-w-3xl px-4 py-4 pb-24 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
         {tab === "overview" && (
           <OverviewTab
             disciplineScore={disciplineScore}
@@ -614,13 +525,13 @@ export default function App() {
         {tab === "leaderboard" && (
           <LeaderboardTab leaderboard={leaderboard} myRank={myRank} profile={profile} />
         )}
-      </main>
+      </div>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Tab: Overview                                                               */
+/* Tab: Today (overview)                                                       */
 /* -------------------------------------------------------------------------- */
 
 function OverviewTab({
@@ -638,145 +549,107 @@ function OverviewTab({
   closeDayClean,
   profile,
 }) {
-  const color = scoreColor(disciplineScore);
+  const tone = disciplineScore >= 80 ? "good" : disciplineScore >= 55 ? "warn" : "bad";
   return (
     <>
-      {/* Discipline score hero */}
-      <Card accent className="flex flex-col sm:flex-row items-center gap-5">
-        <ScoreRing value={disciplineScore} color={color} label="DISCIPLINE" />
-        <div className="flex-1 w-full space-y-3">
-          <SectionTitle right={<Pill tone={disciplineScore >= 80 ? "good" : disciplineScore >= 55 ? "warn" : "bad"}>{disciplineScore >= 80 ? "Locked In" : disciplineScore >= 55 ? "Watch It" : "Off Process"}</Pill>}>
-            How the score is built
-          </SectionTitle>
-          <Meter label="Rule adherence (50%)" value={ruleAdherence} max={100} color={THEME.success} suffix="" />
-          <Meter label="Pre-trade checklist (25%)" value={checklistPct} max={100} color={THEME.brand} />
-          <Meter label="Plan compliance (25%)" value={planCompliance} max={100} color={THEME.amber} />
+      {/* Discipline score breakdown */}
+      <Card className="lg:col-span-5">
+        <SectionTitle right={<Pill tone={tone}>{disciplineScore >= 80 ? "Locked in" : disciplineScore >= 55 ? "Watch it" : "Off process"}</Pill>}>
+          Discipline score
+        </SectionTitle>
+        <div className="flex items-baseline gap-2 mb-4">
+          <span className="num text-[28px] leading-none" style={{ color: scoreColor(disciplineScore) }}>
+            {disciplineScore}
+          </span>
+          <span className="num text-[13px]" style={{ color: THEME.textMuted }}>/ 100</span>
+        </div>
+        <div className="space-y-3">
+          <Meter label="Rule adherence · 50%" value={ruleAdherence} max={100} color={THEME.success} />
+          <Meter label="Pre-trade checklist · 25%" value={checklistPct} max={100} color={THEME.success} />
+          <Meter label="Plan compliance · 25%" value={planCompliance} max={100} color={THEME.success} />
         </div>
       </Card>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatTile label="Streak" value={`${profile.streak}d`} icon="🔥" />
+      <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">
+        <StatTile label="Streak" value={`${profile.streak}d`} />
         <StatTile
           label="Violations"
           value={todaysViolations.length}
-          icon="⚑"
           tone={todaysViolations.length === 0 ? "good" : "bad"}
         />
         <StatTile
-          label="Trades"
+          label="Executions"
           value={`${session.tradesTaken}/${session.maxTrades}`}
-          icon="↹"
           tone={session.tradesTaken > session.maxTrades ? "bad" : "neutral"}
         />
         <StatTile
-          label="Prop Firm"
+          label="Risk status"
           value={propStatus}
-          icon="▣"
           tone={propStatus === "Compliant" ? "good" : propStatus === "At Risk" ? "warn" : "bad"}
         />
+        <Card className="col-span-2 sm:col-span-4">
+          <SectionTitle right={<span className="num text-[12px]" style={{ color: THEME.textSecondary }}>{checklistPct}%</span>}>
+            Pre-trade checklist
+          </SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {CHECKLIST_ITEMS.map((item) => {
+              const done = !!checklist[item.id];
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => toggleCheck(item.id)}
+                  className="option flex items-center gap-2.5 px-3 h-9 text-left text-[13px]"
+                  data-active={done}
+                >
+                  <span className="check-box" data-checked={done}>
+                    {done ? "✓" : ""}
+                  </span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
       </div>
 
-      {/* Pre-trade checklist */}
-      <Card>
-        <SectionTitle right={<span className="text-xs font-bold" style={{ color: THEME.brand }}>{checklistPct}%</span>}>
-          Pre-Trade Checklist
-        </SectionTitle>
-        <div className="space-y-1.5">
-          {CHECKLIST_ITEMS.map((item) => {
-            const done = !!checklist[item.id];
-            return (
-              <button
-                key={item.id}
-                onClick={() => toggleCheck(item.id)}
-                className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                style={{ backgroundColor: done ? "rgba(0,255,136,0.08)" : THEME.elevated }}
-              >
-                <span
-                  className="flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-black flex-shrink-0"
-                  style={{
-                    backgroundColor: done ? THEME.brand : "transparent",
-                    border: done ? "none" : `1px solid ${THEME.border}`,
-                    color: THEME.surface,
-                  }}
-                >
-                  {done ? "✓" : ""}
-                </span>
-                <span
-                  className="text-sm"
-                  style={{ color: done ? THEME.text : THEME.textSecondary }}
-                >
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Rank + close day */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Card>
-          <SectionTitle>Accountability</SectionTitle>
-          <p className="text-sm" style={{ color: THEME.textSecondary }}>
-            You rank
-          </p>
-          <p className="text-3xl font-black" style={{ color: THEME.brand }}>
-            #{myRank}
-            <span className="text-base font-semibold" style={{ color: THEME.textMuted }}>
-              {" "}
-              / {totalRanked}
-            </span>
-          </p>
-          <p className="text-xs mt-1" style={{ color: THEME.textMuted }}>
-            Ranked by discipline, never by P&L.
-          </p>
-        </Card>
-        <Card>
-          <SectionTitle>End of Day</SectionTitle>
-          <p className="text-xs mb-3" style={{ color: THEME.textSecondary }}>
+      <Card className="lg:col-span-5">
+        <SectionTitle>Accountability</SectionTitle>
+        <div className="flex items-baseline gap-2">
+          <span className="num text-[24px] leading-none">#{myRank}</span>
+          <span className="num text-[13px]" style={{ color: THEME.textMuted }}>/ {totalRanked}</span>
+        </div>
+        <p className="text-[12px] mt-2 mb-0" style={{ color: THEME.textMuted }}>
+          Ranked by discipline, never by P&L.
+        </p>
+      </Card>
+      <Card className="lg:col-span-7">
+        <SectionTitle>End of day</SectionTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-[13px] m-0" style={{ color: THEME.textSecondary }}>
             {todaysViolations.length === 0
               ? "Clean sheet today. Close the day to extend your streak."
               : "Violations logged today — closing resets the streak."}
           </p>
           <button
             onClick={closeDayClean}
-            className="w-full rounded-xl py-3 text-sm font-bold transition-transform active:scale-[0.98]"
-            style={{
-              backgroundColor: todaysViolations.length === 0 ? THEME.brand : THEME.elevated,
-              color: todaysViolations.length === 0 ? THEME.surface : THEME.textSecondary,
-              border: todaysViolations.length === 0 ? "none" : `1px solid ${THEME.border}`,
-            }}
+            className={`btn ${todaysViolations.length === 0 ? "btn-primary" : "btn-secondary"}`}
           >
-            {todaysViolations.length === 0 ? "Close Day — Clean ✓" : "Close & Reset Streak"}
+            {todaysViolations.length === 0 ? "Close day — clean" : "Close & reset streak"}
           </button>
-        </Card>
-      </div>
+        </div>
+      </Card>
     </>
   );
 }
 
-function StatTile({ label, value, icon, tone = "neutral" }) {
-  const fg =
-    tone === "good"
-      ? THEME.success
-      : tone === "bad"
-      ? THEME.danger
-      : tone === "warn"
-      ? THEME.amber
-      : THEME.text;
+function StatTile({ label, value, tone = "neutral" }) {
+  const fg = tone === "neutral" ? THEME.text : TONE[tone];
   return (
-    <div
-      className="rounded-xl border p-3"
-      style={{ backgroundColor: THEME.card, borderColor: THEME.border }}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: THEME.textMuted }}>
-          {label}
-        </span>
-        <span className="text-xs opacity-70">{icon}</span>
-      </div>
-      <p className="text-xl font-black mt-1 truncate" style={{ color: fg }}>
+    <div className="panel px-3 py-2.5 min-w-0">
+      <span className="label-caps text-[10px]">{label}</span>
+      <p className="num text-[16px] m-0 mt-1 truncate" style={{ color: fg }}>
         {value}
       </p>
     </div>
@@ -799,16 +672,12 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
 
   return (
     <>
-      <Card accent={locked}>
-        <div className="flex items-center justify-between mb-4">
-          <SectionTitle>Session Lock</SectionTitle>
-          <Pill tone={locked ? "good" : "neutral"}>{locked ? `Locked · ${session.lockedAt}` : "Open"}</Pill>
-        </div>
+      <Card className="lg:col-span-7">
+        <SectionTitle right={<Pill tone={locked ? "good" : "neutral"}>{locked ? `Locked · ${session.lockedAt}` : "Open"}</Pill>}>
+          Session lock
+        </SectionTitle>
 
-        {/* Session type */}
-        <label className="text-xs" style={{ color: THEME.textSecondary }}>
-          Session
-        </label>
+        <label className="label-caps text-[10px]">Session</label>
         <div className="grid grid-cols-2 gap-2 mt-1.5 mb-4">
           {SESSION_TYPES.map((s) => {
             const active = session.type === s.value;
@@ -817,16 +686,11 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
                 key={s.value}
                 onClick={() => update({ type: s.value })}
                 disabled={locked}
-                className="rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-60"
-                style={{
-                  backgroundColor: active ? "rgba(0,255,136,0.1)" : THEME.elevated,
-                  borderColor: active ? THEME.brand : THEME.border,
-                }}
+                className="option px-3 py-2 text-left"
+                data-active={active}
               >
-                <p className="text-sm font-semibold" style={{ color: active ? THEME.brand : THEME.text }}>
-                  {s.label}
-                </p>
-                <p className="text-[10px]" style={{ color: THEME.textMuted }}>
+                <p className="text-[13px] font-medium m-0">{s.label}</p>
+                <p className="num text-[11px] m-0" style={{ color: THEME.textMuted }}>
                   {s.time}
                 </p>
               </button>
@@ -834,10 +698,7 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
           })}
         </div>
 
-        {/* Bias */}
-        <label className="text-xs" style={{ color: THEME.textSecondary }}>
-          Bias
-        </label>
+        <label className="label-caps text-[10px]">Bias</label>
         <div className="grid grid-cols-3 gap-2 mt-1.5 mb-4">
           {BIAS_OPTIONS.map((b) => {
             const active = session.bias === b.value;
@@ -846,21 +707,15 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
                 key={b.value}
                 onClick={() => update({ bias: b.value })}
                 disabled={locked}
-                className="rounded-lg border px-2 py-2 text-center transition-colors disabled:opacity-60"
-                style={{
-                  backgroundColor: active ? "rgba(255,255,255,0.04)" : THEME.elevated,
-                  borderColor: active ? b.color : THEME.border,
-                }}
+                className="option px-2 h-9 text-center text-[13px]"
+                data-active={active}
               >
-                <span className="text-sm font-bold" style={{ color: b.color }}>
-                  {b.icon} {b.label}
-                </span>
+                {b.icon} {b.label}
               </button>
             );
           })}
         </div>
 
-        {/* Numeric limits */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <NumberField
             label="Max trades"
@@ -890,37 +745,32 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
         {locked ? (
           <button
             onClick={unlockSession}
-            className="w-full rounded-xl py-3 text-sm font-bold border"
-            style={{ borderColor: THEME.danger, color: THEME.danger, backgroundColor: "transparent" }}
+            className="btn btn-secondary w-full"
+            style={{ color: THEME.danger }}
           >
-            Unlock Session (logs a violation)
+            Unlock session (logs a violation)
           </button>
         ) : (
-          <button
-            onClick={lockSession}
-            className="w-full rounded-xl py-3 text-sm font-bold transition-transform active:scale-[0.98]"
-            style={{ backgroundColor: THEME.brand, color: THEME.surface }}
-          >
-            Lock In Session Plan
+          <button onClick={lockSession} className="btn btn-primary w-full">
+            Lock in session plan
           </button>
         )}
       </Card>
 
-      {/* Trade counter — only meaningful once locked */}
-      <Card>
+      <Card className="lg:col-span-5 self-start">
         <SectionTitle right={<Pill tone={overtraded ? "bad" : "neutral"}>{overtraded ? "Over limit" : `${sessionMeta?.label}`}</Pill>}>
-          Trades Taken
+          Executions
         </SectionTitle>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-4xl font-black" style={{ color: overtraded ? THEME.danger : THEME.text }}>
+            <p className="num text-[28px] leading-none m-0" style={{ color: overtraded ? THEME.danger : THEME.text }}>
               {session.tradesTaken}
-              <span className="text-lg" style={{ color: THEME.textMuted }}>
+              <span className="text-[15px]" style={{ color: THEME.textMuted }}>
                 {" "}
                 / {session.maxTrades}
               </span>
             </p>
-            <p className="text-xs mt-1" style={{ color: THEME.textSecondary }}>
+            <p className="text-[12px] mt-2 mb-0" style={{ color: THEME.textSecondary }}>
               {locked
                 ? overtraded
                   ? "You are past your plan. Stop."
@@ -928,13 +778,8 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
                 : "Lock the session to start counting."}
             </p>
           </div>
-          <button
-            onClick={addTrade}
-            disabled={!locked}
-            className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-40"
-            style={{ backgroundColor: THEME.elevated, color: THEME.text, border: `1px solid ${THEME.border}` }}
-          >
-            + Trade
+          <button onClick={addTrade} disabled={!locked} className="btn btn-secondary">
+            + Execution
           </button>
         </div>
         <Meter
@@ -952,9 +797,7 @@ function SessionTab({ session, setSession, lockSession, unlockSession, addTrade 
 function NumberField({ label, value, onChange, disabled, step = 1, min = 0 }) {
   return (
     <div>
-      <label className="text-[10px] uppercase tracking-wider" style={{ color: THEME.textMuted }}>
-        {label}
-      </label>
+      <label className="label-caps text-[10px]">{label}</label>
       <input
         type="number"
         inputMode="decimal"
@@ -963,12 +806,7 @@ function NumberField({ label, value, onChange, disabled, step = 1, min = 0 }) {
         min={min}
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-60 outline-none"
-        style={{
-          backgroundColor: THEME.surface,
-          border: `1px solid ${THEME.border}`,
-          color: THEME.text,
-        }}
+        className="field num mt-1.5 disabled:opacity-60"
       />
     </div>
   );
@@ -981,84 +819,71 @@ function NumberField({ label, value, onChange, disabled, step = 1, min = 0 }) {
 function RulesTab({ todaysViolations, penalty, logViolation, removeViolation }) {
   return (
     <>
-      <Card>
-        <div className="flex items-center justify-between">
-          <div>
-            <SectionTitle>Rule Violations Today</SectionTitle>
-            <p className="text-4xl font-black" style={{ color: todaysViolations.length ? THEME.danger : THEME.success }}>
+      <div className="lg:col-span-7 flex flex-col gap-3 lg:gap-4">
+        <Card>
+          <SectionTitle right={<Pill tone={todaysViolations.length ? "bad" : "good"}>{todaysViolations.length ? "Deviation" : "Clean"}</Pill>}>
+            Violations today
+          </SectionTitle>
+          <div className="flex items-baseline gap-3">
+            <span className="num text-[28px] leading-none" style={{ color: todaysViolations.length ? THEME.danger : THEME.text }}>
               {todaysViolations.length}
-            </p>
-            <p className="text-xs" style={{ color: THEME.textSecondary }}>
-              −{penalty} points off your discipline score
-            </p>
+            </span>
+            <span className="num text-[13px]" style={{ color: THEME.textSecondary }}>
+              −{penalty} pts discipline
+            </span>
           </div>
-          <div className="text-right text-5xl opacity-20">⚑</div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card>
-        <SectionTitle>Log a Violation</SectionTitle>
-        <div className="space-y-1.5">
-          {RULEBOOK.map((rule) => {
-            const sev = SEVERITY[rule.severity];
-            return (
-              <button
-                key={rule.id}
-                onClick={() => logViolation(rule)}
-                className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors active:scale-[0.99]"
-                style={{ backgroundColor: THEME.elevated }}
-              >
-                <span className="text-sm" style={{ color: THEME.text }}>
-                  {rule.label}
-                </span>
-                <span
-                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "rgba(255,255,255,0.04)", color: sev.color }}
+        <Card>
+          <SectionTitle>Log a violation</SectionTitle>
+          <div className="flex flex-col gap-1.5">
+            {RULEBOOK.map((rule) => {
+              const sev = SEVERITY[rule.severity];
+              return (
+                <button
+                  key={rule.id}
+                  onClick={() => logViolation(rule)}
+                  className="option flex items-center justify-between gap-3 px-3 h-9 text-left text-[13px]"
                 >
-                  −{sev.weight} · {sev.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
+                  <span className="truncate">{rule.label}</span>
+                  <span className="num text-[11px] flex-shrink-0" style={{ color: sev.color }}>
+                    −{sev.weight} · {sev.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
 
-      <Card>
-        <SectionTitle>Today's Log</SectionTitle>
+      <Card className="lg:col-span-5 self-start">
+        <SectionTitle>Today's log</SectionTitle>
         {todaysViolations.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-3xl mb-2">🟢</p>
-            <p className="text-sm font-semibold" style={{ color: THEME.success }}>
+          <div className="py-6">
+            <p className="text-[13px] font-medium m-0" style={{ color: THEME.success }}>
               No violations logged
             </p>
-            <p className="text-xs" style={{ color: THEME.textMuted }}>
-              Keep it at zero. Your identity depends on it.
+            <p className="text-[12px] m-0 mt-1" style={{ color: THEME.textMuted }}>
+              Keep it at zero.
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-line-soft">
             {todaysViolations.map((v) => {
               const sev = SEVERITY[v.severity];
               return (
-                <div
-                  key={v.uid}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2"
-                  style={{ backgroundColor: THEME.elevated }}
-                >
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: sev.color }} />
+                <div key={v.uid} className="flex items-center gap-3 py-2">
+                  <span className="num text-[12px] w-11 flex-shrink-0" style={{ color: THEME.textMuted }}>
+                    {v.time}
+                  </span>
+                  <span className="h-2 w-2 rotate-45 flex-shrink-0" style={{ backgroundColor: sev.color }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate" style={{ color: THEME.text }}>
-                      {v.label}
-                    </p>
-                    <p className="text-[10px]" style={{ color: THEME.textMuted }}>
-                      {v.time} · {sev.label} (−{sev.weight})
+                    <p className="text-[13px] truncate m-0">{v.label}</p>
+                    <p className="text-[11px] m-0" style={{ color: THEME.textMuted }}>
+                      {sev.label} · −{sev.weight}
                     </p>
                   </div>
-                  <button
-                    onClick={() => removeViolation(v.uid)}
-                    className="text-xs px-2 py-1 rounded-md"
-                    style={{ color: THEME.textMuted, backgroundColor: "transparent" }}
-                  >
+                  <button onClick={() => removeViolation(v.uid)} className="btn btn-ghost h-7 px-2 text-[12px]">
                     Undo
                   </button>
                 </div>
@@ -1072,7 +897,7 @@ function RulesTab({ todaysViolations, penalty, logViolation, removeViolation }) 
 }
 
 /* -------------------------------------------------------------------------- */
-/* Tab: Prop Firm Compliance                                                   */
+/* Tab: Prop Firm Compliance (Risk)                                            */
 /* -------------------------------------------------------------------------- */
 
 function PropFirmTab({ propfirm, setPropfirm, prop }) {
@@ -1084,11 +909,8 @@ function PropFirmTab({ propfirm, setPropfirm, prop }) {
 
   return (
     <>
-      <Card accent>
-        <div className="flex items-center justify-between mb-3">
-          <SectionTitle>Prop Firm Compliance</SectionTitle>
-          <Pill tone={statusTone}>{prop.status}</Pill>
-        </div>
+      <Card className="lg:col-span-7">
+        <SectionTitle right={<Pill tone={statusTone}>{prop.status}</Pill>}>Prop firm compliance</SectionTitle>
         <div className="space-y-3">
           <Meter
             label="Daily loss used"
@@ -1102,7 +924,7 @@ function PropFirmTab({ propfirm, setPropfirm, prop }) {
             label="Drawdown"
             value={propfirm.peakDrawdownPct}
             max={propfirm.maxDrawdownPct}
-            color={THEME.brand}
+            color={THEME.amber}
             danger={propfirm.peakDrawdownPct > propfirm.maxDrawdownPct}
             suffix="%"
           />
@@ -1110,32 +932,23 @@ function PropFirmTab({ propfirm, setPropfirm, prop }) {
             label="Profit target progress"
             value={Math.max(0, propfirm.totalProfit)}
             max={Math.round(prop.targetCash)}
-            color={THEME.success}
+            color={THEME.textSecondary}
             suffix=""
           />
           <Meter
             label="Trading days"
             value={propfirm.tradingDays}
             max={propfirm.minTradingDays}
-            color={THEME.brand}
+            color={THEME.textSecondary}
             suffix=""
           />
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
           {prop.checks.map((c) => (
-            <div
-              key={c.key}
-              className="rounded-lg px-2 py-2 text-center"
-              style={{ backgroundColor: THEME.elevated }}
-            >
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: THEME.textMuted }}>
-                {c.label}
-              </p>
-              <p
-                className="text-sm font-bold mt-0.5"
-                style={{ color: c.ok ? THEME.success : THEME.danger }}
-              >
+            <div key={c.key} className="rounded-[3px] px-2 py-2" style={{ backgroundColor: THEME.elevated }}>
+              <p className="label-caps text-[10px] m-0 truncate">{c.label}</p>
+              <p className="num text-[13px] m-0 mt-1" style={{ color: c.ok ? THEME.success : THEME.danger }}>
                 {c.ok ? "PASS" : "FAIL"}
               </p>
             </div>
@@ -1143,26 +956,28 @@ function PropFirmTab({ propfirm, setPropfirm, prop }) {
         </div>
       </Card>
 
-      <Card>
-        <SectionTitle>Challenge Rules</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Account size $" value={propfirm.accountSize} step={5000} onChange={(v) => set({ accountSize: v })} />
-          <NumberField label="Profit target %" value={propfirm.profitTargetPct} step={0.5} onChange={(v) => set({ profitTargetPct: v })} />
-          <NumberField label="Daily loss limit %" value={propfirm.dailyLossLimitPct} step={0.5} onChange={(v) => set({ dailyLossLimitPct: v })} />
-          <NumberField label="Max drawdown %" value={propfirm.maxDrawdownPct} step={0.5} onChange={(v) => set({ maxDrawdownPct: v })} />
-          <NumberField label="Min trading days" value={propfirm.minTradingDays} onChange={(v) => set({ minTradingDays: v })} />
-        </div>
-      </Card>
+      <div className="lg:col-span-5 flex flex-col gap-3 lg:gap-4">
+        <Card>
+          <SectionTitle>Challenge rules</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Account size $" value={propfirm.accountSize} step={5000} onChange={(v) => set({ accountSize: v })} />
+            <NumberField label="Profit target %" value={propfirm.profitTargetPct} step={0.5} onChange={(v) => set({ profitTargetPct: v })} />
+            <NumberField label="Daily loss limit %" value={propfirm.dailyLossLimitPct} step={0.5} onChange={(v) => set({ dailyLossLimitPct: v })} />
+            <NumberField label="Max drawdown %" value={propfirm.maxDrawdownPct} step={0.5} onChange={(v) => set({ maxDrawdownPct: v })} />
+            <NumberField label="Min trading days" value={propfirm.minTradingDays} onChange={(v) => set({ minTradingDays: v })} />
+          </div>
+        </Card>
 
-      <Card>
-        <SectionTitle>Live Figures</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Today's P&L $" value={propfirm.dailyPnL} step={50} min={-1000000} onChange={(v) => set({ dailyPnL: v })} />
-          <NumberField label="Total profit $" value={propfirm.totalProfit} step={50} min={-1000000} onChange={(v) => set({ totalProfit: v })} />
-          <NumberField label="Peak drawdown %" value={propfirm.peakDrawdownPct} step={0.1} onChange={(v) => set({ peakDrawdownPct: v })} />
-          <NumberField label="Trading days done" value={propfirm.tradingDays} onChange={(v) => set({ tradingDays: v })} />
-        </div>
-      </Card>
+        <Card>
+          <SectionTitle>Live figures</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Today's P&L $" value={propfirm.dailyPnL} step={50} min={-1000000} onChange={(v) => set({ dailyPnL: v })} />
+            <NumberField label="Total profit $" value={propfirm.totalProfit} step={50} min={-1000000} onChange={(v) => set({ totalProfit: v })} />
+            <NumberField label="Peak drawdown %" value={propfirm.peakDrawdownPct} step={0.1} onChange={(v) => set({ peakDrawdownPct: v })} />
+            <NumberField label="Trading days done" value={propfirm.tradingDays} onChange={(v) => set({ tradingDays: v })} />
+          </div>
+        </Card>
+      </div>
     </>
   );
 }
@@ -1172,60 +987,35 @@ function PropFirmTab({ propfirm, setPropfirm, prop }) {
 /* -------------------------------------------------------------------------- */
 
 function LeaderboardTab({ leaderboard, myRank, profile }) {
+  const entries = leaderboard.map((e) => ({
+    id: e.id,
+    name: e.name,
+    handle: e.me ? undefined : e.handle,
+    discipline: e.score,
+    streak: e.streak,
+    me: !!e.me,
+  }));
   return (
     <>
-      <Card accent>
-        <SectionTitle>Your Standing</SectionTitle>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-4xl font-black" style={{ color: THEME.brand }}>
-              #{myRank}
-            </p>
-            <p className="text-xs" style={{ color: THEME.textSecondary }}>
-              of {leaderboard.length} traders · {profile.streak}-day streak
-            </p>
-          </div>
-          <p className="text-xs text-right max-w-[12rem]" style={{ color: THEME.textMuted }}>
-            The board ranks discipline, not profit. Process compounds.
-          </p>
-        </div>
+      <Card className="lg:col-span-8">
+        <SectionTitle right={<Pill>Sample peers</Pill>}>Accountability leaderboard</SectionTitle>
+        <LeaderboardTable entries={entries} showStreak />
+        <p className="text-[12px] m-0 mt-3" style={{ color: THEME.textMuted }}>
+          Peer rows are illustrative until the shared leaderboard launches. Execution and
+          consistency columns populate as behavioural data is shared.
+        </p>
       </Card>
-
-      <Card>
-        <SectionTitle>Accountability Leaderboard</SectionTitle>
-        <div className="space-y-1.5">
-          {leaderboard.map((e, i) => (
-            <div
-              key={e.id}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5"
-              style={{
-                backgroundColor: e.me ? "rgba(0,255,136,0.1)" : THEME.elevated,
-                border: e.me ? `1px solid ${THEME.brand}` : "1px solid transparent",
-              }}
-            >
-              <span
-                className="w-6 text-center text-sm font-black flex-shrink-0"
-                style={{ color: i < 3 ? THEME.brand : THEME.textMuted }}
-              >
-                {i + 1}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: THEME.text }}>
-                  {e.name} {e.me && <span style={{ color: THEME.brand }}>(you)</span>}
-                </p>
-                <p className="text-[10px]" style={{ color: THEME.textMuted }}>
-                  {e.handle} · 🔥 {e.streak}d
-                </p>
-              </div>
-              <div
-                className="rounded-lg px-2.5 py-1 text-sm font-black flex-shrink-0"
-                style={{ backgroundColor: THEME.surface, color: scoreColor(e.score) }}
-              >
-                {e.score}
-              </div>
-            </div>
-          ))}
+      <Card className="lg:col-span-4 self-start">
+        <SectionTitle>Your standing</SectionTitle>
+        <div className="flex items-baseline gap-2">
+          <span className="num text-[28px] leading-none">#{myRank}</span>
+          <span className="num text-[13px]" style={{ color: THEME.textMuted }}>
+            / {leaderboard.length}
+          </span>
         </div>
+        <p className="text-[12px] mt-2 mb-0" style={{ color: THEME.textSecondary }}>
+          {profile.streak}-day streak. The board ranks discipline, not profit.
+        </p>
       </Card>
     </>
   );

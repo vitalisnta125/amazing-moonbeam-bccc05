@@ -30,11 +30,13 @@ export type Outcome = "win" | "loss" | "breakeven" | "no-trade";
 
 export type Discipline = "full" | "partial" | "broken" | "none";
 
+// Outcome is financial information, not a behavioural state, so outcomes are
+// shown in neutral tones; colour is reserved for execution quality.
 export const OUTCOMES: { value: Outcome; label: string; color: string }[] = [
-  { value: "win", label: "Win", color: "var(--color-success)" },
-  { value: "loss", label: "Loss", color: "var(--color-danger)" },
-  { value: "breakeven", label: "Break-even", color: "var(--color-streak-amber)" },
-  { value: "no-trade", label: "No trade", color: "var(--color-text-secondary)" },
+  { value: "win", label: "Win", color: "var(--color-fg)" },
+  { value: "loss", label: "Loss", color: "var(--color-fg)" },
+  { value: "breakeven", label: "Break-even", color: "var(--color-fg)" },
+  { value: "no-trade", label: "No trade", color: "var(--color-fg)" },
 ];
 
 export function countFollowed(rules: RuleState): number {
@@ -56,10 +58,10 @@ export function gradeDiscipline(
 }
 
 export const DISCIPLINE_COLOR: Record<Discipline, string> = {
-  full: "var(--color-streak-green)",
-  partial: "var(--color-streak-amber)",
-  broken: "var(--color-streak-grey)",
-  none: "var(--color-surface-elevated)",
+  full: "var(--color-mint)",
+  partial: "var(--color-amber)",
+  broken: "var(--color-red)",
+  none: "var(--color-panel-2)",
 };
 
 export const DISCIPLINE_LABEL: Record<Discipline, string> = {
