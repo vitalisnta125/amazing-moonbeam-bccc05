@@ -1,11 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEliteMode } from "../lib/elite-mode-context";
 import { useRecaps } from "../lib/recaps-context";
-import { DISCIPLINE_LABEL } from "../lib/trade-rules";
+import { DISCIPLINE_COLOR, DISCIPLINE_LABEL, type Discipline } from "../lib/trade-rules";
+import { Page, PageHeader } from "../components/ui/Page";
+import { Panel } from "../components/ui/Panel";
+import { Tag } from "../components/ui/Tag";
+import type { Tone } from "../lib/tone";
 
 export const Route = createFileRoute("/_app/history")({
   component: HistoryPage,
 });
+
+const DISCIPLINE_TONE: Record<string, Tone> = {
+  full: "positive",
+  partial: "attention",
+  broken: "risk",
+  none: "neutral",
+};
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="panel px-4 py-3">
+      <p className="label-caps m-0 text-[10px]">{label}</p>
+      <p className="num text-[22px] leading-none text-fg m-0 mt-2">{value}</p>
+    </div>
+  );
+}
 
 function StreakHeatmap({ sessions }: { sessions: { date: string; status: string }[] }) {
   const today = new Date();
@@ -31,13 +50,6 @@ function StreakHeatmap({ sessions }: { sessions: { date: string; status: string 
     d.setDate(d.getDate() + 1);
   }
   if (currentWeek.length > 0) weeks.push(currentWeek);
-
-  const colorMap: Record<string, string> = {
-    full: "var(--color-streak-green)",
-    partial: "var(--color-streak-amber)",
-    broken: "var(--color-streak-grey)",
-    none: "var(--color-surface-elevated)",
-  };
 
   const currentStreak = (() => {
     let streak = 0;
@@ -69,62 +81,49 @@ function StreakHeatmap({ sessions }: { sessions: { date: string; status: string 
   })();
 
   return (
-    <div>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[var(--color-surface-elevated)] rounded-lg p-4 text-center">
-          <p className="text-3xl font-black text-[var(--color-streak-green)]">{currentStreak}</p>
-          <p className="text-xs text-[var(--color-text-secondary)]">Current Streak</p>
-        </div>
-        <div className="bg-[var(--color-surface-elevated)] rounded-lg p-4 text-center">
-          <p className="text-3xl font-black text-[var(--color-brand)]">{longestStreak}</p>
-          <p className="text-xs text-[var(--color-text-secondary)]">Longest Streak</p>
-        </div>
-        <div className="bg-[var(--color-surface-elevated)] rounded-lg p-4 text-center">
-          <p className="text-3xl font-black">{sessions.length}</p>
-          <p className="text-xs text-[var(--color-text-secondary)]">Total Sessions</p>
-        </div>
+    <div className="flex flex-col gap-3 lg:gap-4">
+      <div className="grid grid-cols-3 gap-3 lg:gap-4">
+        <Stat label="Current streak" value={currentStreak} />
+        <Stat label="Longest streak" value={longestStreak} />
+        <Stat label="Total sessions" value={sessions.length} />
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="flex gap-[3px] min-w-fit">
-          {weeks.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
-              {week.map((day, di) => (
-                <div
-                  key={di}
-                  title={`${day.date.toISOString().split("T")[0]}: ${day.status}`}
-                  className="w-[14px] h-[14px] rounded-[3px] transition-colors"
-                  style={{
-                    backgroundColor: colorMap[day.status],
-                    opacity: day.date > today ? 0.2 : 1,
-                  }}
-                />
-              ))}
+      <Panel label="Last 90 days" meta="Each cell is one day">
+        <div className="overflow-x-auto pb-1">
+          <div className="flex gap-[3px] min-w-fit">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col gap-[3px]">
+                {week.map((day, di) => (
+                  <div
+                    key={di}
+                    title={`${day.date.toISOString().split("T")[0]}: ${DISCIPLINE_LABEL[day.status as Discipline] ?? day.status}`}
+                    className="w-[13px] h-[13px] rounded-[2px]"
+                    style={{
+                      backgroundColor: DISCIPLINE_COLOR[day.status as Discipline] ?? DISCIPLINE_COLOR.none,
+                      opacity: day.date > today ? 0.2 : 1,
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3">
+          {(["full", "partial", "broken", "none"] as Discipline[]).map((status) => (
+            <div key={status} className="flex items-center gap-1.5">
+              <div className="w-[10px] h-[10px] rounded-[2px]" style={{ backgroundColor: DISCIPLINE_COLOR[status] }} />
+              <span className="text-[12px] text-fg-2">{DISCIPLINE_LABEL[status]}</span>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="flex items-center gap-4 mt-4 justify-center">
-        {[
-          { label: "Rules followed", color: "var(--color-streak-green)" },
-          { label: "Partial", color: "var(--color-streak-amber)" },
-          { label: "Broke protocol", color: "var(--color-streak-grey)" },
-          { label: "No session", color: "var(--color-surface-elevated)" },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <div className="w-[12px] h-[12px] rounded-[2px]" style={{ backgroundColor: item.color }} />
-            <span className="text-xs text-[var(--color-text-secondary)]">{item.label}</span>
-          </div>
-        ))}
-      </div>
+      </Panel>
     </div>
   );
 }
 
 function HistoryPage() {
   const { recaps, ready } = useRecaps();
-  const { eliteMode } = useEliteMode();
 
   // The heatmap and streak math run off discipline grades, which already use the
   // same vocabulary (full / partial / broken / none) as the heatmap colour map.
@@ -134,75 +133,51 @@ function HistoryPage() {
   }));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">{eliteMode ? "Operational Record" : "Discipline Streak"}</h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            {eliteMode ? "Mission compliance across all engagements" : "Your trading discipline over time"}
-          </p>
-        </div>
-        <Link
-          to="/recap"
-          className="px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-lg font-semibold hover:bg-[var(--color-brand-dark)] transition-colors cursor-pointer border-none text-sm no-underline"
-        >
-          {eliteMode ? "Log Mission" : "Log / Recap"}
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title="Discipline"
+        description="Your trading discipline over time. A patient no-trade day counts as a clean day."
+        actions={
+          <Link to="/recap" className="btn btn-primary">
+            Log / recap
+          </Link>
+        }
+      />
 
       {!ready ? (
-        <div className="elite-card bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-10 text-center">
-          <p className="text-sm text-[var(--color-text-muted)]">Loading your history…</p>
-        </div>
+        <Panel>
+          <p className="text-[13px] text-fg-3 m-0">Loading your history…</p>
+        </Panel>
       ) : sessions.length === 0 ? (
-        <div className="elite-card bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-10 text-center">
-          <div className="text-3xl mb-3 opacity-30">📈</div>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-1">No sessions recorded yet.</p>
-          <p className="text-xs text-[var(--color-text-muted)] mb-5">
+        <Panel>
+          <p className="text-[13px] text-fg-2 m-0">No sessions recorded yet.</p>
+          <p className="text-[12px] text-fg-3 m-0 mt-1 mb-4">
             Record today's session — or backfill past days — and your streak will build here.
           </p>
-          <Link
-            to="/recap"
-            className="inline-block px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-lg font-semibold text-sm no-underline"
-          >
+          <Link to="/recap" className="btn btn-secondary">
             Add your first recap →
           </Link>
-        </div>
+        </Panel>
       ) : (
-        <>
-          <div className="elite-card bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
+          <div className="lg:col-span-8">
             <StreakHeatmap sessions={sessions} />
           </div>
 
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Recent Sessions</h2>
-            <div className="space-y-2">
+          <Panel label="Recent sessions" meta={`${Math.min(20, sessions.length)} of ${sessions.length}`} className="lg:col-span-4">
+            <ul className="m-0 p-0 list-none divide-y divide-line-soft">
               {sessions.slice(0, 20).map((log, i) => (
-                <div
-                  key={i}
-                  className="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between"
-                >
-                  <span className="text-sm font-medium">{log.date}</span>
-                  <span
-                    className="px-3 py-1 rounded-full text-xs font-semibold"
-                    style={{
-                      backgroundColor:
-                        log.status === "full"
-                          ? "var(--color-streak-green)"
-                          : log.status === "partial"
-                            ? "var(--color-streak-amber)"
-                            : "var(--color-streak-grey)",
-                      color: log.status === "partial" ? "#000" : "#fff",
-                    }}
-                  >
+                <li key={i} className="flex items-center justify-between py-2">
+                  <span className="num text-[13px] text-fg-2">{log.date}</span>
+                  <Tag tone={DISCIPLINE_TONE[log.status] ?? "neutral"}>
                     {DISCIPLINE_LABEL[log.status as keyof typeof DISCIPLINE_LABEL] ?? log.status}
-                  </span>
-                </div>
+                  </Tag>
+                </li>
               ))}
-            </div>
-          </div>
-        </>
+            </ul>
+          </Panel>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

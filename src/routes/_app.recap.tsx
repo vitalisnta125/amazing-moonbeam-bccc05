@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useEliteMode } from "../lib/elite-mode-context";
 import { useRecaps } from "../lib/recaps-context";
 import {
   TRADE_RULES,
@@ -8,12 +7,22 @@ import {
   OUTCOMES,
   countFollowed,
   gradeDiscipline,
-  DISCIPLINE_COLOR,
   DISCIPLINE_LABEL,
   type RuleState,
   type Outcome,
 } from "../lib/trade-rules";
 import { findByDate, todayISO, type DayRecap } from "../lib/recap-stats";
+import { Page, PageHeader } from "../components/ui/Page";
+import { Panel } from "../components/ui/Panel";
+import { Tag } from "../components/ui/Tag";
+import type { Tone } from "../lib/tone";
+
+const DISCIPLINE_TONE: Record<string, Tone> = {
+  full: "positive",
+  partial: "attention",
+  broken: "risk",
+  none: "neutral",
+};
 
 export const Route = createFileRoute("/_app/recap")({
   component: RecapPage,
@@ -22,9 +31,7 @@ export const Route = createFileRoute("/_app/recap")({
 const EMPTY_RULES: RuleState = {};
 
 function RecapPage() {
-  const { eliteMode } = useEliteMode();
   const { recaps, ready, save } = useRecaps();
-  const brand = eliteMode ? "#ff3d00" : "var(--color-brand)";
 
   const [date, setDate] = useState(todayISO());
   const [rules, setRules] = useState<RuleState>(EMPTY_RULES);
@@ -96,267 +103,181 @@ function RecapPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-12">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">
-          {eliteMode ? "Mission Debrief" : "Trade Recap"}
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Log a session — today, or backfill a past day you couldn't record in
-          real time. One entry per day; saving again updates it.
-        </p>
-      </div>
-
-      {/* Date + discipline preview */}
-      <div className="elite-card bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-5 mb-5">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-              Session Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              max={todayISO()}
-              onChange={(e) => {
-                setDate(e.target.value || todayISO());
-                setJustSaved(false);
-              }}
-              className="px-4 py-2.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none transition-colors"
-              style={{ colorScheme: "dark" }}
-            />
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5">
-              {existing
-                ? "Editing an existing entry for this day."
-                : "New entry."}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-[var(--color-text-secondary)] mb-1">
-              Discipline
-            </p>
-            <span
-              className="inline-block px-3 py-1 rounded-full text-xs font-bold"
-              style={{
-                backgroundColor: DISCIPLINE_COLOR[discipline],
-                color: discipline === "partial" ? "#000" : "#fff",
-              }}
-            >
-              {DISCIPLINE_LABEL[discipline]}
-            </span>
-            <p className="text-sm font-black text-[var(--color-text-primary)] mt-1.5">
-              {followed}/{RULES_TOTAL} rules
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Outcome */}
-      <div className="mb-5">
-        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">
-          Outcome
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {OUTCOMES.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => {
-                setOutcome(o.value);
-                setJustSaved(false);
-              }}
-              className="py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer border"
-              style={{
-                backgroundColor:
-                  outcome === o.value ? `${o.color}20` : "var(--color-surface-card)",
-                borderColor: outcome === o.value ? o.color : "var(--color-border)",
-                color: outcome === o.value ? o.color : "var(--color-text-secondary)",
-              }}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Entry checklist — the trader's 10 rules */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">
-            Entry Checklist
-          </label>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setAll(true)}
-              className="text-[11px] font-semibold bg-transparent border-none cursor-pointer"
-              style={{ color: brand }}
-            >
-              Check all
-            </button>
-            <button
-              onClick={() => setAll(false)}
-              className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] bg-transparent border-none cursor-pointer"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-        <div className="space-y-2">
-          {TRADE_RULES.map((rule) => {
-            const checked = !!rules[rule.id];
-            return (
-              <button
-                key={rule.id}
-                onClick={() => toggleRule(rule.id)}
-                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all cursor-pointer border"
-                style={{
-                  backgroundColor: checked
-                    ? eliteMode
-                      ? "rgba(255,61,0,0.08)"
-                      : "rgba(0,255,136,0.08)"
-                    : "var(--color-surface-card)",
-                  borderColor: checked ? brand : "var(--color-border)",
-                }}
-              >
-                <span
-                  className="flex h-6 w-6 items-center justify-center rounded-md text-[13px] font-black flex-shrink-0"
-                  style={{
-                    backgroundColor: checked ? brand : "transparent",
-                    border: checked ? "none" : "1px solid var(--color-border)",
-                    color: eliteMode ? "#fff" : "var(--color-surface)",
-                  }}
-                >
-                  {checked ? "✓" : ""}
-                </span>
-                <span
-                  className="text-sm font-medium"
-                  style={{
-                    color: checked
-                      ? "var(--color-text-primary)"
-                      : "var(--color-text-secondary)",
-                  }}
-                >
-                  {rule.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Optional trade detail — only relevant when a trade was taken */}
-      {traded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-          <div>
-            <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-              Result (R multiple)
-            </label>
-            <input
-              type="number"
-              step={0.1}
-              value={rMultiple ?? ""}
-              onChange={(e) => {
-                setRMultiple(
-                  e.target.value === "" ? null : parseFloat(e.target.value)
-                );
-                setJustSaved(false);
-              }}
-              placeholder="e.g. 1.5 or -0.5"
-              className="w-full px-4 py-2.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-              Instrument (optional)
-            </label>
-            <input
-              type="text"
-              value={pair}
-              onChange={(e) => {
-                setPair(e.target.value);
-                setJustSaved(false);
-              }}
-              placeholder="e.g. EUR/USD, NQ, ES"
-              className="w-full px-4 py-2.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none transition-colors"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Risk used */}
-      <div className="mb-5">
-        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-          Risk Used (optional)
-        </label>
-        <div className="flex gap-2">
-          {[0.5, 1].map((r) => (
-            <button
-              key={r}
-              onClick={() => {
-                setRiskUsed(riskUsed === r ? null : r);
-                setJustSaved(false);
-              }}
-              className="px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer border"
-              style={{
-                backgroundColor:
-                  riskUsed === r ? brand : "var(--color-surface-card)",
-                borderColor: riskUsed === r ? brand : "var(--color-border)",
-                color:
-                  riskUsed === r
-                    ? eliteMode
-                      ? "#fff"
-                      : "var(--color-surface)"
-                    : "var(--color-text-secondary)",
-              }}
-            >
-              {r}%
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Notes */}
-      <div className="mb-6">
-        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-          Notes
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => {
-            setNotes(e.target.value);
-            setJustSaved(false);
-          }}
-          rows={3}
-          placeholder="What happened, what you saw, how you executed..."
-          className="w-full px-4 py-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none transition-colors resize-y"
-        />
-      </div>
-
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full py-3.5 rounded-xl font-semibold transition-all cursor-pointer border-none text-base disabled:opacity-50"
-        style={{
-          backgroundColor: brand,
-          color: eliteMode ? "#fff" : "var(--color-surface)",
-        }}
-      >
-        {saving
-          ? "Saving…"
-          : justSaved
-            ? "Saved ✓"
-            : existing
-              ? "Update Recap"
-              : "Save Recap"}
-      </button>
-
-      {/* Recent recaps — tap to load into the form for editing */}
-      <RecentRecaps
-        recaps={recaps}
-        ready={ready}
-        selectedDate={date}
-        onPick={setDate}
+    <Page>
+      <PageHeader
+        title="Trades"
+        description="Record a session — today, or backfill a past day. One entry per day; saving again updates it."
       />
-    </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
+        <div className="lg:col-span-8 flex flex-col gap-3 lg:gap-4">
+          {/* Date + discipline preview */}
+          <Panel>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <label className="label-caps block mb-2">Session date</label>
+                <input
+                  type="date"
+                  value={date}
+                  max={todayISO()}
+                  onChange={(e) => {
+                    setDate(e.target.value || todayISO());
+                    setJustSaved(false);
+                  }}
+                  className="field num w-auto"
+                />
+                <p className="text-[11px] text-fg-3 m-0 mt-1.5">
+                  {existing ? "Editing an existing entry for this day." : "New entry."}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="label-caps m-0 text-[10px]">Execution</p>
+                  <p className="num text-[18px] leading-none text-fg m-0 mt-1.5">
+                    {followed}/{RULES_TOTAL}
+                  </p>
+                </div>
+                <Tag tone={DISCIPLINE_TONE[discipline]} dot>
+                  {DISCIPLINE_LABEL[discipline]}
+                </Tag>
+              </div>
+            </div>
+          </Panel>
+
+          {/* Entry checklist — the trader's 10 rules */}
+          <Panel
+            label="Entry checklist"
+            right={
+              <>
+                <button onClick={() => setAll(true)} className="btn btn-ghost h-6 px-2 text-[12px]">
+                  Check all
+                </button>
+                <button onClick={() => setAll(false)} className="btn btn-ghost h-6 px-2 text-[12px]">
+                  Clear
+                </button>
+              </>
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+              {TRADE_RULES.map((rule) => {
+                const checked = !!rules[rule.id];
+                return (
+                  <button
+                    key={rule.id}
+                    onClick={() => toggleRule(rule.id)}
+                    className="option flex items-center gap-3 px-3 h-9 text-left text-[13px]"
+                    data-active={checked}
+                    aria-pressed={checked}
+                  >
+                    <span className="check-box" data-checked={checked}>
+                      {checked ? "✓" : ""}
+                    </span>
+                    <span className="truncate">{rule.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+
+          {/* Outcome — recorded, but secondary to execution */}
+          <Panel label="Outcome" meta="Secondary to execution">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {OUTCOMES.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => {
+                    setOutcome(o.value);
+                    setJustSaved(false);
+                  }}
+                  className="option h-9 text-[13px]"
+                  data-active={outcome === o.value}
+                  aria-pressed={outcome === o.value}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+              {traded && (
+                <div>
+                  <label className="label-caps block mb-2">Result (R multiple)</label>
+                  <input
+                    type="number"
+                    step={0.1}
+                    value={rMultiple ?? ""}
+                    onChange={(e) => {
+                      setRMultiple(e.target.value === "" ? null : parseFloat(e.target.value));
+                      setJustSaved(false);
+                    }}
+                    placeholder="e.g. 1.5 or -0.5"
+                    className="field num"
+                  />
+                </div>
+              )}
+              {traded && (
+                <div>
+                  <label className="label-caps block mb-2">Instrument (optional)</label>
+                  <input
+                    type="text"
+                    value={pair}
+                    onChange={(e) => {
+                      setPair(e.target.value);
+                      setJustSaved(false);
+                    }}
+                    placeholder="e.g. EUR/USD, NQ, ES"
+                    className="field"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="label-caps block mb-2">Risk used (optional)</label>
+                <div className="flex gap-1.5">
+                  {[0.5, 1].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => {
+                        setRiskUsed(riskUsed === r ? null : r);
+                        setJustSaved(false);
+                      }}
+                      className="option num h-[34px] px-4 text-[13px]"
+                      data-active={riskUsed === r}
+                      aria-pressed={riskUsed === r}
+                    >
+                      {r}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          {/* Notes */}
+          <Panel label="Notes">
+            <textarea
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                setJustSaved(false);
+              }}
+              rows={3}
+              placeholder="What happened, what you saw, how you executed..."
+              className="field resize-y"
+            />
+            <div className="flex justify-end mt-3">
+              <button onClick={handleSave} disabled={saving} className="btn btn-primary btn-lg">
+                {saving ? "Saving…" : justSaved ? "Saved ✓" : existing ? "Update recap" : "Save recap"}
+              </button>
+            </div>
+          </Panel>
+        </div>
+
+        {/* Recent recaps — tap to load into the form for editing */}
+        <div className="lg:col-span-4">
+          <RecentRecaps recaps={recaps} ready={ready} selectedDate={date} onPick={setDate} />
+        </div>
+      </div>
+    </Page>
   );
 }
 
@@ -371,61 +292,45 @@ function RecentRecaps({
   selectedDate: string;
   onPick: (date: string) => void;
 }) {
-  if (!ready) {
-    return (
-      <p className="text-sm text-[var(--color-text-muted)] mt-8 text-center">
-        Loading your recaps…
-      </p>
-    );
-  }
-  if (recaps.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-text-muted)] mt-8 text-center">
-        No recaps yet. Your saved sessions will appear here and feed your
-        dashboard and streak.
-      </p>
-    );
-  }
   return (
-    <div className="mt-8">
-      <h2 className="text-lg font-semibold mb-3">Recent Recaps</h2>
-      <div className="space-y-2">
-        {recaps.slice(0, 30).map((r) => {
-          const selected = r.sessionDate === selectedDate;
-          const outcome = OUTCOMES.find((o) => o.value === r.outcome);
-          return (
-            <button
-              key={r.sessionDate}
-              onClick={() => onPick(r.sessionDate)}
-              className="w-full flex items-center justify-between gap-3 rounded-lg p-4 text-left transition-all cursor-pointer border"
-              style={{
-                backgroundColor: "var(--color-surface-card)",
-                borderColor: selected ? "var(--color-brand)" : "var(--color-border)",
-              }}
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                  {r.sessionDate}
-                </p>
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  {r.rulesFollowed}/{r.rulesTotal} rules
-                  {outcome ? ` · ${outcome.label}` : ""}
-                  {r.rMultiple != null ? ` · ${r.rMultiple > 0 ? "+" : ""}${r.rMultiple}R` : ""}
-                </p>
-              </div>
-              <span
-                className="px-2.5 py-1 rounded-full text-[11px] font-semibold flex-shrink-0"
-                style={{
-                  backgroundColor: DISCIPLINE_COLOR[r.discipline],
-                  color: r.discipline === "partial" ? "#000" : "#fff",
-                }}
-              >
-                {DISCIPLINE_LABEL[r.discipline]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <Panel label="Recent recaps" meta={ready && recaps.length ? `${Math.min(30, recaps.length)} shown` : undefined}>
+      {!ready ? (
+        <p className="text-[13px] text-fg-3 m-0">Loading your recaps…</p>
+      ) : recaps.length === 0 ? (
+        <p className="text-[13px] text-fg-3 m-0">
+          No recaps yet. Your saved sessions will appear here and feed your Overview and streak.
+        </p>
+      ) : (
+        <ul className="m-0 p-0 list-none flex flex-col gap-px -mx-2">
+          {recaps.slice(0, 30).map((r) => {
+            const selected = r.sessionDate === selectedDate;
+            const outcome = OUTCOMES.find((o) => o.value === r.outcome);
+            return (
+              <li key={r.sessionDate}>
+                <button
+                  onClick={() => onPick(r.sessionDate)}
+                  className={`w-full flex items-center justify-between gap-3 rounded-[4px] px-2 py-2 text-left cursor-pointer border-none transition-colors ${selected ? "bg-panel-2" : "bg-transparent hover:bg-panel-2"}`}
+                >
+                  <div className="min-w-0">
+                    <p className="num text-[13px] text-fg m-0">{r.sessionDate}</p>
+                    <p className="text-[12px] text-fg-3 m-0">
+                      <span className="num">
+                        {r.rulesFollowed}/{r.rulesTotal}
+                      </span>{" "}
+                      rules
+                      {outcome ? ` · ${outcome.label}` : ""}
+                      {r.rMultiple != null && (
+                        <span className="num"> · {`${r.rMultiple > 0 ? "+" : ""}${r.rMultiple}R`}</span>
+                      )}
+                    </p>
+                  </div>
+                  <Tag tone={DISCIPLINE_TONE[r.discipline] ?? "neutral"}>{DISCIPLINE_LABEL[r.discipline]}</Tag>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panel>
   );
 }

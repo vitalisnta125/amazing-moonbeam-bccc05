@@ -13,8 +13,12 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTodayRouteImport } from './routes/_app.today'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSessionRouteImport } from './routes/_app.session'
+import { Route as AppRulesRouteImport } from './routes/_app.rules'
 import { Route as AppRecapRouteImport } from './routes/_app.recap'
+import { Route as AppOsRouteImport } from './routes/_app.os'
 import { Route as AppJournalRouteImport } from './routes/_app.journal'
 import { Route as AppHistoryRouteImport } from './routes/_app.history'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -39,14 +43,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppTodayRoute = AppTodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSessionRoute = AppSessionRouteImport.update({
   id: '/session',
   path: '/session',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRulesRoute = AppRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRecapRoute = AppRecapRouteImport.update({
   id: '/recap',
   path: '/recap',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOsRoute = AppOsRouteImport.update({
+  id: '/os',
+  path: '/os',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
@@ -78,8 +102,12 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/history': typeof AppHistoryRoute
   '/journal': typeof AppJournalRoute
+  '/os': typeof AppOsRoute
   '/recap': typeof AppRecapRoute
+  '/rules': typeof AppRulesRoute
   '/session': typeof AppSessionRoute
+  '/settings': typeof AppSettingsRoute
+  '/today': typeof AppTodayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -89,8 +117,12 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/history': typeof AppHistoryRoute
   '/journal': typeof AppJournalRoute
+  '/os': typeof AppOsRoute
   '/recap': typeof AppRecapRoute
+  '/rules': typeof AppRulesRoute
   '/session': typeof AppSessionRoute
+  '/settings': typeof AppSettingsRoute
+  '/today': typeof AppTodayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -102,8 +134,12 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/os': typeof AppOsRoute
   '/_app/recap': typeof AppRecapRoute
+  '/_app/rules': typeof AppRulesRoute
   '/_app/session': typeof AppSessionRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/today': typeof AppTodayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -115,8 +151,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/journal'
+    | '/os'
     | '/recap'
+    | '/rules'
     | '/session'
+    | '/settings'
+    | '/today'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -126,8 +166,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/journal'
+    | '/os'
     | '/recap'
+    | '/rules'
     | '/session'
+    | '/settings'
+    | '/today'
   id:
     | '__root__'
     | '/'
@@ -138,8 +182,12 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/history'
     | '/_app/journal'
+    | '/_app/os'
     | '/_app/recap'
+    | '/_app/rules'
     | '/_app/session'
+    | '/_app/settings'
+    | '/_app/today'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -179,6 +227,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/today': {
+      id: '/_app/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof AppTodayRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/session': {
       id: '/_app/session'
       path: '/session'
@@ -186,11 +248,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSessionRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/rules': {
+      id: '/_app/rules'
+      path: '/rules'
+      fullPath: '/rules'
+      preLoaderRoute: typeof AppRulesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/recap': {
       id: '/_app/recap'
       path: '/recap'
       fullPath: '/recap'
       preLoaderRoute: typeof AppRecapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/os': {
+      id: '/_app/os'
+      path: '/os'
+      fullPath: '/os'
+      preLoaderRoute: typeof AppOsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/journal': {
@@ -229,8 +305,12 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppJournalRoute: typeof AppJournalRoute
+  AppOsRoute: typeof AppOsRoute
   AppRecapRoute: typeof AppRecapRoute
+  AppRulesRoute: typeof AppRulesRoute
   AppSessionRoute: typeof AppSessionRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppTodayRoute: typeof AppTodayRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -238,8 +318,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppJournalRoute: AppJournalRoute,
+  AppOsRoute: AppOsRoute,
   AppRecapRoute: AppRecapRoute,
+  AppRulesRoute: AppRulesRoute,
   AppSessionRoute: AppSessionRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppTodayRoute: AppTodayRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

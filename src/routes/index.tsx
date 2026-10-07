@@ -56,7 +56,7 @@ function LandingPage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
             href="#pricing"
-            className="px-8 py-4 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-xl font-bold text-base hover:bg-[var(--color-brand-dark)] transition-colors no-underline shadow-lg shadow-[var(--color-brand)]/20"
+            className="px-8 py-4 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-xl font-bold text-base hover:bg-[var(--color-brand-dark)] transition-colors no-underline"
           >
             Join the Waitlist
           </a>
@@ -335,7 +335,7 @@ function LandingPage() {
             </ul>
             <a
               href="#waitlist"
-              className="block w-full py-3 text-center rounded-xl bg-[var(--color-brand)] text-[var(--color-surface)] font-semibold text-sm hover:bg-[var(--color-brand-dark)] transition-colors no-underline shadow-lg shadow-[var(--color-brand)]/15"
+              className="block w-full py-3 text-center rounded-xl bg-[var(--color-brand)] text-[var(--color-surface)] font-semibold text-sm hover:bg-[var(--color-brand-dark)] transition-colors no-underline"
             >
               Get early access
             </a>
@@ -360,7 +360,7 @@ function LandingPage() {
               placeholder="your@email.com"
               className="flex-1 px-4 py-3 bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-[var(--color-brand)] transition-colors placeholder:text-[var(--color-text-muted)]"
             />
-            <button className="px-6 py-3 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-xl font-bold text-sm hover:bg-[var(--color-brand-dark)] transition-colors cursor-pointer border-none shadow-lg shadow-[var(--color-brand)]/15">
+            <button className="px-6 py-3 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-xl font-bold text-sm hover:bg-[var(--color-brand-dark)] transition-colors cursor-pointer border-none">
               Join
             </button>
           </div>

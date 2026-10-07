@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 // The EXECURE mark: an open hexagon with three stacked "E" slabs. Colours come
-// from the --logo-green / --logo-slab tokens so Elite Mode can re-tint it.
+// from the --logo-green / --logo-slab tokens.
 export function LogoMark({ size = 32 }: { size?: number }) {
   const clipId = useId();
 
@@ -41,7 +41,7 @@ export function LogoMark({ size = 32 }: { size?: number }) {
   );
 }
 
-// "EXECURE" wordmark with the brand-green X.
+// "EXECURE" wordmark with the accent X.
 export function Wordmark() {
   return (
     <span>

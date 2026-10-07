@@ -34,10 +34,14 @@ EXECURE is "The Behaviour Operating System for Traders" — a web application th
 │       └── identity-signup.ts  # Netlify Identity webhook (assigns default role)
 ├── src/
 │   ├── components/
+│   │   ├── shell/                # AppShell parts: nav.ts (single nav config), Sidebar, TopBar, MobileNav
+│   │   ├── ui/                   # Design-system primitives: Panel/SectionHeader, MetricBar, Tag, Page/PageHeader
+│   │   ├── behaviour/            # Overview modules: TodayPanel, BehaviourSignal, OperatingRules, BehaviourTimeline, …
 │   │   ├── CallbackHandler.tsx   # OAuth/email callback handler
-│   │   ├── Navigation.tsx        # App navigation bar
 │   │   └── TradingViewWidget.tsx # Embedded TradingView chart
 │   ├── lib/
+│   │   ├── behaviour.ts          # Pure behavioural read-model (scores, signal, rules, timeline)
+│   │   ├── tone.ts               # Semantic colour tones (mint/violet/amber/red/grey)
 │   │   ├── auth.ts               # getServerUser server function
 │   │   └── identity-context.tsx  # Client-side React auth context
 │   ├── middleware/
@@ -100,5 +104,6 @@ npm run build    # Production build
 - Components: PascalCase
 - Server functions: camelCase, grouped in `.functions.ts` files
 - Route files: TanStack Router file-based convention
-- CSS: Tailwind utility classes + CSS custom properties for theme
+- CSS: Tailwind utility classes + design tokens in `styles.css` (`bg-panel`, `text-fg-2`, `border-line`, `text-mint`…). Colour is semantic: mint = healthy execution, violet = behavioural insight, amber = attention, red = violation/risk. Never hard-code colours in components.
+- Panels use 4–6px radius; use `.num` (Geist Mono) only for execution data
 - Database columns: snake_case strings, JS variables camelCase

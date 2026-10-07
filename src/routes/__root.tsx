@@ -14,7 +14,7 @@ export const Route = createRootRoute({
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { name: "theme-color", content: "#080c14" },
+      { name: "theme-color", content: "#090b0c" },
       { name: "apple-mobile-web-app-title", content: "EXECURE" },
       { title: "EXECURE — The Behaviour Operating System for Traders" },
       {
@@ -28,9 +28,11 @@ export const Route = createRootRoute({
       { rel: "alternate icon", href: "/favicon.ico", sizes: "16x16 32x32" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap",
       },
     ],
   }),
@@ -54,19 +56,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-surface)]">
+    <div className="min-h-screen flex items-center justify-center bg-bg px-6">
       <div className="text-center">
-        <h1 className="text-6xl font-black text-[var(--color-brand)] mb-4">
-          404
-        </h1>
-        <p className="text-[var(--color-text-secondary)] text-lg mb-8">
-          This page doesn't exist.
-        </p>
-        <a
-          href="/"
-          className="inline-block px-6 py-3 bg-[var(--color-brand)] text-[var(--color-surface)] rounded-lg font-semibold hover:bg-[var(--color-brand-dark)] transition-colors"
-        >
-          Back to Home
+        <p className="num text-[13px] text-fg-3 mb-2">404</p>
+        <h1 className="text-[20px] font-semibold text-fg m-0 mb-2">Page not found</h1>
+        <p className="text-fg-2 text-[13px] mb-6">This page doesn't exist.</p>
+        <a href="/" className="btn btn-primary">
+          Back to home
         </a>
       </div>
     </div>

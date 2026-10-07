@@ -7,6 +7,7 @@ import {
   type Outcome,
   type Discipline,
 } from "./trade-rules";
+import { localDateISO } from "./local-date";
 
 export interface DayRecap {
   id?: number;
@@ -22,8 +23,11 @@ export interface DayRecap {
   discipline: Discipline;
 }
 
+// The trader's own browser-local calendar day — never UTC, never a
+// hardcoded city, so "today" always matches the clock the trader is looking
+// at.
 export function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
+  return localDateISO();
 }
 
 function sortedDesc(recaps: DayRecap[]): DayRecap[] {
